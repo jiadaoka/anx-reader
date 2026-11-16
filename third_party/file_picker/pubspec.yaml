@@ -1,0 +1,17 @@
+name: file_picker
+description: Keeps the upstream package name for the HarmonyOS-capable file picker fork.
+publish_to: none
+version: 10.3.8
+
+environment:
+  sdk: '>=3.5.2 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # 带 ohos 平台的上游实现。fork 把包改名为 file_picker_ohos，这里转出一层，
+  # 应用侧继续 import 'package:file_picker/file_picker.dart'。
+  file_picker_ohos:
+    git:
+      url: https://gitcode.com/openharmony-sig/fluttertpc_file_picker
+      ref: br_v10.3.8_ohos

@@ -67,15 +67,22 @@ Future<void> main() async {
 
   Server().start();
 
-  audioHandler = await AudioService.init(
-    builder: () => TtsHandler(),
-    config: const AudioServiceConfig(
-      androidNotificationChannelId: 'com.anx.reader.tts.channel.audio',
-      androidNotificationChannelName: 'ANX Reader TTS',
-      androidNotificationOngoing: true,
-      androidStopForegroundOnPause: true,
-    ),
-  );
+  try {
+    audioHandler = await AudioService.init(
+      builder: () => TtsHandler(),
+      config: const AudioServiceConfig(
+        androidNotificationChannelId: 'com.anx.reader.tts.channel.audio',
+        androidNotificationChannelName: 'ANX Reader TTS',
+        androidNotificationOngoing: true,
+        androidStopForegroundOnPause: true,
+      ),
+    );
+  } catch (e) {
+    // 这个 await 在 runApp 之前。鸿蒙还没有 audio_service 的平台实现，
+    // 初始化会抛 MissingPluginException，不能让它挡住整个应用启动。
+    AnxLog.warning('Main: AudioService init failed, TTS unavailable: $e');
+    audioHandler = _UnavailableAudioHandler();
+  }
 
   SmartDialog.config.custom = SmartConfigCustom(
     maskColor: Colors.black.withAlpha(35),
@@ -89,6 +96,11 @@ Future<void> main() async {
     ),
   );
 }
+
+/// audio_service 平台不可用时的占位实现。
+///
+/// 只保证 [audioHandler] 非空；TTS 操作会静默无效，等平台插件接入后自然被真实实现替换。
+class _UnavailableAudioHandler extends BaseAudioHandler {}
 
 class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
