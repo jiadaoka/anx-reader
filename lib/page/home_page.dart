@@ -232,7 +232,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     child: SafeArea(
                       child: NavigationRail(
                         leading: InkWell(
-                          onTap: () => openAboutDialog(),
+                          onTap: () => openJiaAnxAboutDialog(),
                           child: Padding(
                             padding: const EdgeInsets.only(right: 2.0),
                             child: Image.asset(

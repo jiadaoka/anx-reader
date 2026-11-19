@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Anx Reader</string>
+	<string>JiaAnx Reader</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -22,7 +22,7 @@
 		<string>zh</string>
 	</array>
 	<key>CFBundleName</key>
-	<string>anx_reader</string>
+	<string>jiaanx</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -42,11 +42,11 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>We need access to your photo library to save images.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Required because the in-app browser may reference the microphone API; Anx Reader does not record audio itself.</string>
+	<string>Required because the in-app browser may reference the microphone API; JiaAnx Reader does not record audio itself.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Required because the in-app browser may reference the camera API; Anx Reader does not capture photos itself.</string>
+	<string>Required because the in-app browser may reference the camera API; JiaAnx Reader does not capture photos itself.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Required because some embedded web content may reference location APIs; Anx Reader does not use your location itself.</string>
+	<string>Required because some embedded web content may reference location APIs; JiaAnx Reader does not use your location itself.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

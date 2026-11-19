@@ -40,7 +40,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     child: Container(
                       constraints: const BoxConstraints(maxWidth: 500),
                       child: Text(
-                        'Anx',
+                        'JiaAnx',
                         style: TextStyle(
                           fontSize: 130,
                           fontWeight: FontWeight.bold,
@@ -79,6 +79,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   },
                 ),
               const About(),
+              const UpstreamAbout(),
             ],
           ),
         ),

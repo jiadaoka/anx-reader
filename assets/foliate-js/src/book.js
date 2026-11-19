@@ -255,6 +255,61 @@ const expandRangeForCefHitTest = (range) => {
   return r;
 };
 
+const SCENE_PARAGRAPH_SELECTOR = 'p, li, blockquote, dd, dt, h1, h2, h3, h4, h5, h6, pre, figcaption, td, th';
+const SCENE_PARAGRAPH_MAX_CHARS = 1200;
+
+const _sceneBlockElementOf = (node) => {
+  if (!node) return null;
+  let element = node.nodeType === 1 ? node : node.parentElement;
+  let divFallback = null;
+  while (element && element.tagName !== 'BODY' && element.tagName !== 'HTML') {
+    if (element.matches && element.matches(SCENE_PARAGRAPH_SELECTOR)) {
+      return element;
+    }
+    if (!divFallback && element.tagName === 'DIV') {
+      const text = _collapseWhitespace(element.textContent || '');
+      if (text && text.length <= SCENE_PARAGRAPH_MAX_CHARS) {
+        divFallback = element;
+      }
+    }
+    element = element.parentElement;
+  }
+  return divFallback;
+};
+
+const _sceneNeighbourText = (element, direction) => {
+  if (!element) return '';
+  let sibling = direction < 0
+    ? element.previousElementSibling
+    : element.nextElementSibling;
+  while (sibling) {
+    const isBlock = (sibling.matches && sibling.matches(SCENE_PARAGRAPH_SELECTOR))
+      || sibling.tagName === 'DIV';
+    if (isBlock) {
+      const text = _collapseWhitespace(sibling.textContent || '');
+      if (text) {
+        return text.length > SCENE_PARAGRAPH_MAX_CHARS
+          ? text.slice(0, SCENE_PARAGRAPH_MAX_CHARS)
+          : text;
+      }
+    }
+    sibling = direction < 0
+      ? sibling.previousElementSibling
+      : sibling.nextElementSibling;
+  }
+  return '';
+};
+
+const buildParagraphContext = (range) => {
+  if (!range) return { before: '', after: '' };
+  const startBlock = _sceneBlockElementOf(range.startContainer);
+  const endBlock = _sceneBlockElementOf(range.endContainer);
+  return {
+    before: _sceneNeighbourText(startBlock, -1),
+    after: _sceneNeighbourText(endBlock, 1),
+  };
+};
+
 const handleSelection = (view, doc, index) => {
   const selection = doc.getSelection();
   let range = getSelectionRange(selection);
@@ -289,6 +344,7 @@ const handleSelection = (view, doc, index) => {
   }
 
   const contextText = buildRangeContextText(range);
+  const paragraphContext = buildParagraphContext(range);
 
   onSelectionEnd({
     index,
@@ -297,7 +353,9 @@ const handleSelection = (view, doc, index) => {
     cfi,
     pos: position,
     text,
-    contextText
+    contextText,
+    contextBefore: paragraphContext.before,
+    contextAfter: paragraphContext.after
   });
 };
 

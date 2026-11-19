@@ -12,6 +12,8 @@ import 'package:anx_reader/utils/toast/common.dart';
 import 'package:anx_reader/widgets/book_share/excerpt_share_service.dart';
 import 'package:anx_reader/widgets/common/axis_flex.dart';
 import 'package:anx_reader/widgets/icon_and_text.dart';
+import 'package:anx_reader/widgets/scene_image/scene_character_sheet.dart';
+import 'package:anx_reader/widgets/scene_image/scene_supplement_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
@@ -357,6 +359,63 @@ class ExcerptMenuState extends State<ExcerptMenu> {
               icon: const Icon(EvaIcons.edit_2_outline),
               text: L10n.of(context).contextMenuWriteIdea,
             ),
+          // 剧情配图
+          if (Prefs().sceneImageEnabled) ...[
+            IconAndText(
+              compact: true,
+              onTap: () async {
+                final playerState = epubPlayerKey.currentState;
+                if (playerState == null) return;
+                final book = playerState.book;
+                final chapter = playerState.chapterTitle;
+                final progress = playerState.percentage;
+                final contextBefore = playerState.selectionContextBefore;
+                final contextAfter = playerState.selectionContextAfter;
+                widget.onClose();
+                final navigatorContext = navigatorKey.currentContext;
+                if (navigatorContext == null) return;
+                await showSceneSupplementSheet(
+                  context: navigatorContext,
+                  bookId: book.id,
+                  bookTitle: book.title,
+                  excerpt: widget.annoContent,
+                  chapter: chapter,
+                  cfi: widget.annoCfi,
+                  progress: progress,
+                  contextBefore: contextBefore,
+                  contextAfter: contextAfter,
+                );
+                playerState.restoreReaderFocus();
+              },
+              icon: const Icon(Icons.image_outlined),
+              text: L10n.of(context).sceneImageDrawThis,
+            ),
+            IconAndText(
+              compact: true,
+              onTap: () async {
+                final playerState = epubPlayerKey.currentState;
+                if (playerState == null) return;
+                final book = playerState.book;
+                final chapter = playerState.chapterTitle;
+                final progress = playerState.percentage;
+                widget.onClose();
+                final navigatorContext = navigatorKey.currentContext;
+                if (navigatorContext == null) return;
+                await showSceneCharacterSheet(
+                  context: navigatorContext,
+                  bookId: book.id,
+                  bookTitle: book.title,
+                  excerpt: widget.annoContent,
+                  chapter: chapter,
+                  cfi: widget.annoCfi,
+                  progress: progress,
+                );
+                playerState.restoreReaderFocus();
+              },
+              icon: const Icon(Icons.person_add_alt_1),
+              text: L10n.of(context).sceneCharacterAssign,
+            ),
+          ],
           // AI chat
           if (EnvVar.enableAIFeature)
             IconAndText(

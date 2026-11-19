@@ -14,9 +14,11 @@ import 'package:anx_reader/utils/platform_utils.dart';
 import 'package:anx_reader/models/ai_quick_prompt_chip.dart';
 import 'package:anx_reader/models/book.dart';
 import 'package:anx_reader/models/read_theme.dart';
+import 'package:anx_reader/models/scene_task.dart';
 import 'package:anx_reader/page/book_detail.dart';
 import 'package:anx_reader/page/book_player/epub_player.dart';
 import 'package:anx_reader/providers/sync.dart';
+import 'package:anx_reader/providers/scene_tasks.dart';
 import 'package:anx_reader/service/ai/index.dart';
 import 'package:anx_reader/service/ai/prompt_generate.dart';
 import 'package:anx_reader/utils/env_var.dart';
@@ -69,6 +71,9 @@ class ReadingPageState extends ConsumerState<ReadingPage>
     with WidgetsBindingObserver, TickerProviderStateMixin {
   static const empty = SizedBox.shrink();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey<TocWidgetState> _sceneTaskTocKey =
+      GlobalKey<TocWidgetState>();
+  StreamSubscription<SceneTask>? _sceneTaskDoneSub;
   late Book _book;
   late Widget _currentPage = empty;
   final Stopwatch _readTimeWatch = Stopwatch();
@@ -113,6 +118,8 @@ class ReadingPageState extends ConsumerState<ReadingPage>
     setAwakeTimer(Prefs().awakeTime);
 
     _book = widget.book;
+    _sceneTaskDoneSub =
+        SceneTaskStore.instance.taskCompleted.listen(_onSceneTaskDone);
     heroTag = widget.heroTag ?? 'preventHeroWhenStart';
     // _volumeKeyBoard = VolumeKeyBoard.instance;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -132,6 +139,36 @@ class ReadingPageState extends ConsumerState<ReadingPage>
       });
     }
     super.initState();
+  }
+
+  void _onSceneTaskDone(SceneTask task) {
+    if (!mounted || task.bookId != _book.id) return;
+    final l10n = L10n.of(context);
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          task.isPromptTask
+              ? l10n.sceneImagePromptDoneToast
+              : l10n.sceneImageDoneToast,
+        ),
+        duration: const Duration(seconds: 6),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 88),
+        action: SnackBarAction(
+          label: l10n.sceneImageView,
+          onPressed: _openSceneTasks,
+        ),
+      ),
+    );
+  }
+
+  void _openSceneTasks() {
+    SceneTaskStore.instance.markBookRead(_book.id);
+    _sceneTaskTocKey.currentState?.showTasksTab();
+    _scaffoldKey.currentState?.openDrawer();
   }
 
   @override
@@ -155,6 +192,7 @@ class ReadingPageState extends ConsumerState<ReadingPage>
     //   unawaited(_volumeKeyBoard.removeListener());
     // }
     HardwareKeyboard.instance.removeHandler(_globalReaderKeyHandler);
+    _sceneTaskDoneSub?.cancel();
     _readerFocusNode.dispose();
     super.dispose();
   }
@@ -900,6 +938,7 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                   ),
                   child: SafeArea(
                     child: TocWidget(
+                      key: _sceneTaskTocKey,
                       epubPlayerKey: epubPlayerKey,
                       hideAppBarAndBottomBar: showOrHideAppBarAndBottomBar,
                       closeDrawer: () {

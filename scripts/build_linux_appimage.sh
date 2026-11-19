@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
 # Build Linux release packages: AppImage + tar.gz of the Flutter bundle.
-# Naming matches other platforms: Anx-Reader-<platform>-<version>[-<arch>].<ext>
+# Naming matches other platforms: JiaAnx-<platform>-<version>[-<arch>].<ext>
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-APP_NAME="Anx Reader"
-APP_ID="com.anxcye.anx_reader"
-BINARY_NAME="anx_reader"
-ICON_NAME="anx-reader"
+APP_NAME="JiaAnx Reader"
+APP_ID="com.jia.jiaanx"
+BINARY_NAME="jiaanx"
+ICON_NAME="jiaanx"
 ARCH="${ARCH:-x86_64}"
 VERSION="${VERSION:-$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d '+' -f 1)}"
 
 BUILD_DIR="$ROOT_DIR/build/linux/x64/release"
 BUNDLE_DIR="$BUILD_DIR/bundle"
 DIST_DIR="$ROOT_DIR/build/linux/dist"
-APPDIR="$DIST_DIR/AnxReader.AppDir"
+APPDIR="$DIST_DIR/JiaAnx.AppDir"
 APPIMAGETOOL="${APPIMAGETOOL:-$DIST_DIR/appimagetool-$ARCH.AppImage}"
-PKG_BASENAME="Anx-Reader-linux-${VERSION}-${ARCH}"
+PKG_BASENAME="JiaAnx-linux-${VERSION}-${ARCH}"
 APPIMAGE_OUTPUT="$DIST_DIR/${PKG_BASENAME}.AppImage"
 TARBALL_OUTPUT="$DIST_DIR/${PKG_BASENAME}.tar.gz"
 # Final copies next to other platform artifact layouts (build/linux/*.…)

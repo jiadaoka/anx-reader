@@ -13,7 +13,7 @@ import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 // Current app database version
-const int currentDbVersion = 7;
+const int currentDbVersion = 8;
 
 const createBookSQL = '''
 CREATE TABLE tb_books (
@@ -94,6 +94,81 @@ CREATE TABLE tb_groups (
   create_time TEXT,
   update_time TEXT,
   FOREIGN KEY (parent_id) REFERENCES tb_groups(id)
+)
+''';
+
+const createSceneTaskSQL = '''
+CREATE TABLE tb_scene_tasks (
+  id TEXT PRIMARY KEY,
+  book_id INTEGER,
+  book_title TEXT,
+  type TEXT,
+  status TEXT,
+  excerpt TEXT,
+  chapter TEXT,
+  cfi TEXT,
+  progress REAL,
+  prompt TEXT,
+  negative TEXT,
+  supplement TEXT,
+  context_before TEXT,
+  context_after TEXT,
+  context_complete INTEGER,
+  size_hint TEXT,
+  prompt_task_id TEXT,
+  workflow_id INTEGER,
+  workflow_name TEXT,
+  workflow_snapshot TEXT,
+  width INTEGER,
+  height INTEGER,
+  seed INTEGER,
+  image_path TEXT,
+  failure_reason TEXT,
+  character_refs TEXT,
+  history TEXT,
+  create_time TEXT,
+  update_time TEXT
+)
+''';
+
+const createSceneCharacterSQL = '''
+CREATE TABLE tb_scene_characters (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  book_id INTEGER,
+  name TEXT,
+  keywords TEXT,
+  bio TEXT,
+  prompt_fields TEXT,
+  create_time TEXT,
+  update_time TEXT
+)
+''';
+
+const createSceneCharacterFragmentSQL = '''
+CREATE TABLE tb_scene_character_fragments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  character_id INTEGER,
+  text TEXT,
+  cfi TEXT,
+  chapter TEXT,
+  progress REAL,
+  create_time TEXT
+)
+''';
+
+const createSceneWorkflowSQL = '''
+CREATE TABLE tb_scene_workflows (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT,
+  workflow_json TEXT,
+  portrait_width INTEGER,
+  portrait_height INTEGER,
+  landscape_width INTEGER,
+  landscape_height INTEGER,
+  orientation TEXT,
+  is_active INTEGER DEFAULT 0,
+  create_time TEXT,
+  update_time TEXT
 )
 ''';
 
@@ -426,6 +501,14 @@ class DBHelper {
             VALUES (?, '...', 0, datetime('now'), datetime('now'))
           ''', [groupId]);
         }
+        continue case7;
+      case7:
+      case 7:
+        // 剧情配图：任务、角色档案与片段、工作流预设
+        await db.execute(createSceneTaskSQL);
+        await db.execute(createSceneCharacterSQL);
+        await db.execute(createSceneCharacterFragmentSQL);
+        await db.execute(createSceneWorkflowSQL);
     }
 
     if (oldVersion != 0 && Prefs().webdavStatus) {

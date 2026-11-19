@@ -1775,6 +1775,83 @@ class Prefs extends ChangeNotifier {
       selectedSearchEngineId = SearchEngine.builtinEngines.first.id;
     }
   }
+
+  // 剧情配图
+  static const String sceneComfyStatusUntested = 'untested';
+  static const String sceneComfyStatusOk = 'ok';
+  static const String sceneComfyStatusFailed = 'failed';
+
+  bool get sceneImageEnabled => prefs.getBool('sceneImageEnabled') ?? true;
+
+  set sceneImageEnabled(bool value) {
+    prefs.setBool('sceneImageEnabled', value);
+    notifyListeners();
+  }
+
+  String get sceneComfyServer => prefs.getString('sceneComfyServer') ?? '';
+
+  set sceneComfyServer(String value) {
+    prefs.setString('sceneComfyServer', value);
+    notifyListeners();
+  }
+
+  /// 未测试 / 正常 / 失败；由「测试连接」写入，不是实时状态。
+  String get sceneComfyStatus =>
+      prefs.getString('sceneComfyStatus') ?? sceneComfyStatusUntested;
+
+  set sceneComfyStatus(String value) {
+    prefs.setString('sceneComfyStatus', value);
+    notifyListeners();
+  }
+
+  bool get scenePromptJailbreakEnabled =>
+      prefs.getBool('scenePromptJailbreakEnabled') ?? true;
+
+  set scenePromptJailbreakEnabled(bool value) {
+    prefs.setBool('scenePromptJailbreakEnabled', value);
+    notifyListeners();
+  }
+
+  /// 四段提示词留空即用内置，所以空串与「没有自定义」等价。
+  String get scenePromptJailbreakText =>
+      prefs.getString('scenePromptJailbreakText') ?? '';
+
+  set scenePromptJailbreakText(String value) {
+    prefs.setString('scenePromptJailbreakText', value);
+    notifyListeners();
+  }
+
+  String get scenePromptSpecText =>
+      prefs.getString('scenePromptSpecText') ?? '';
+
+  set scenePromptSpecText(String value) {
+    prefs.setString('scenePromptSpecText', value);
+    notifyListeners();
+  }
+
+  String get scenePromptContractText =>
+      prefs.getString('scenePromptContractText') ?? '';
+
+  set scenePromptContractText(String value) {
+    prefs.setString('scenePromptContractText', value);
+    notifyListeners();
+  }
+
+  String get scenePromptThinkingText =>
+      prefs.getString('scenePromptThinkingText') ?? '';
+
+  set scenePromptThinkingText(String value) {
+    prefs.setString('scenePromptThinkingText', value);
+    notifyListeners();
+  }
+
+  bool sceneTaskUnread(int bookId) =>
+      prefs.getBool('sceneTaskUnread_$bookId') ?? false;
+
+  void setSceneTaskUnread(int bookId, bool value) {
+    prefs.setBool('sceneTaskUnread_$bookId', value);
+    notifyListeners();
+  }
 }
 
 ReadingInfoEnum _decodeReadingInfoEnum(

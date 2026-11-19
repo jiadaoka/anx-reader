@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:anx_reader/config/shared_preference_provider.dart';
+import 'package:anx_reader/constants/app_info.dart';
 import 'package:anx_reader/utils/log/common.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:window_manager/window_manager.dart';
@@ -125,7 +126,7 @@ Future<void> initializeDesktopWindow() async {
   );
   final isMaximized = Prefs().windowInfo.isMaximized;
 
-  WindowManager.instance.setTitle('Anx Reader');
+  WindowManager.instance.setTitle(AppInfo.appDisplayName);
 
   if (isMaximized) {
     await WindowManager.instance.maximize();

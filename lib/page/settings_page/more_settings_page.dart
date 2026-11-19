@@ -6,6 +6,7 @@ import 'package:anx_reader/page/settings_page/appearance.dart';
 import 'package:anx_reader/page/settings_page/developer/developer_options_page.dart';
 import 'package:anx_reader/page/settings_page/narrate.dart';
 import 'package:anx_reader/page/settings_page/reading.dart';
+import 'package:anx_reader/page/settings_page/scene_image.dart';
 import 'package:anx_reader/page/settings_page/settings_page.dart';
 import 'package:anx_reader/page/settings_page/storege.dart';
 import 'package:anx_reader/page/settings_page/sync.dart';
@@ -129,6 +130,19 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                   ],
                 },
               {
+                "title": L10n.of(context).sceneImageTitle,
+                "icon": Icons.image_outlined,
+                "sections": const SceneImageSettings(),
+                "subtitles": Prefs().sceneImageEnabled
+                    ? [
+                        L10n.of(context).sceneImagePromptSection,
+                        L10n.of(context).sceneImageComfySection,
+                        L10n.of(context).sceneImageWorkflowSection,
+                        L10n.of(context).sceneImageTaskRecords,
+                      ]
+                    : [L10n.of(context).sceneImageDisabled],
+              },
+              {
                 "title": L10n.of(context).storage,
                 "icon": Icons.storage_outlined,
                 "sections": const StorageSettings(),
@@ -196,6 +210,7 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                     },
                   ),
                 const About(leadingColor: true),
+                const UpstreamAbout(leadingColor: true),
               ];
 
               return ListView(

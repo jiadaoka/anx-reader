@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:anx_reader/config/shared_preference_provider.dart';
+import 'package:anx_reader/constants/app_info.dart';
 import 'package:anx_reader/l10n/generated/L10n.dart';
 import 'package:anx_reader/main.dart';
 import 'package:anx_reader/page/settings_page/developer/developer_options_page.dart';
+import 'package:anx_reader/utils/app_version.dart';
 import 'package:anx_reader/utils/env_var.dart';
 import 'package:anx_reader/utils/toast/common.dart';
 import 'package:anx_reader/widgets/settings/link_icon.dart';
@@ -14,10 +16,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
-import 'package:pubspec_parse/pubspec_parse.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class About extends StatefulWidget {
+class About extends StatelessWidget {
   const About({
     super.key,
     this.leadingColor = false,
@@ -25,29 +26,30 @@ class About extends StatefulWidget {
   final bool leadingColor;
 
   @override
-  State<About> createState() => _AboutState();
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Text(L10n.of(context).appAboutJiaAnx),
+      leading: Icon(Icons.info_outline,
+          color: leadingColor ? Theme.of(context).colorScheme.primary : null),
+      onTap: () => openJiaAnxAboutDialog(),
+    );
+  }
 }
 
-class _AboutState extends State<About> {
-  String version = '';
-
-  @override
-  void initState() {
-    super.initState();
-    initData();
-  }
-
-  Future<void> initData() async {}
+class UpstreamAbout extends StatelessWidget {
+  const UpstreamAbout({
+    super.key,
+    this.leadingColor = false,
+  });
+  final bool leadingColor;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       title: Text(L10n.of(context).appAbout),
       leading: Icon(Icons.info_outline,
-          color: widget.leadingColor
-              ? Theme.of(context).colorScheme.primary
-              : null),
-      onTap: () => openAboutDialog(),
+          color: leadingColor ? Theme.of(context).colorScheme.primary : null),
+      onTap: () => openUpstreamAboutDialog(),
     );
   }
 }
@@ -91,10 +93,81 @@ void _openDeveloperOptionsPage() {
   );
 }
 
-Future<void> openAboutDialog() async {
-  final pubspecContent = await rootBundle.loadString('pubspec.yaml');
-  final pubspec = Pubspec.parse(pubspecContent);
-  final version = pubspec.version.toString();
+Future<void> openJiaAnxAboutDialog() async {
+  final version = await getAppVersion();
+
+  showDialog(
+    context: navigatorKey.currentContext!,
+    builder: (BuildContext context) {
+      return AlertDialog(
+          content: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: 500,
+          minWidth: 300,
+        ),
+        child: SingleChildScrollView(
+          child: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.8,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 0, 0, 5),
+                  child: Center(
+                    child: Text(
+                      AppInfo.appBrand,
+                      style: TextStyle(
+                        fontSize: 50,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ),
+                const Divider(),
+                ListTile(
+                  title: Text(L10n.of(context).appVersion),
+                  subtitle: Text(version + (kDebugMode ? ' (debug)' : '')),
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: version));
+                    AnxToast.show(L10n.of(context).notesPageCopied);
+                    _handleDeveloperUnlockTap(context);
+                  },
+                ),
+                ListTile(
+                  title: Text(L10n.of(context).jiaAnxApplicationId),
+                  subtitle: const Text(AppInfo.applicationId),
+                ),
+                ListTile(
+                  title: Text(L10n.of(context).appProjectHomepage),
+                  onTap: () {
+                    launchUrl(
+                      Uri.parse(AppInfo.projectHomepage),
+                      mode: LaunchMode.externalApplication,
+                    );
+                  },
+                ),
+                ListTile(
+                  title: Text(L10n.of(context).appLicense),
+                  onTap: () {
+                    showLicensePage(
+                      context: context,
+                      applicationName: AppInfo.appBrand,
+                      applicationVersion: version,
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ));
+    },
+  );
+}
+
+void openUpstreamAboutDialog() {
+  const version = AppInfo.baseVersion;
 
   showDialog(
     context: navigatorKey.currentContext!,
@@ -131,13 +204,11 @@ Future<void> openAboutDialog() async {
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: version));
                     AnxToast.show(L10n.of(context).notesPageCopied);
-                    _handleDeveloperUnlockTap(context);
                   },
                 ),
-                if (EnvVar.enableCheckUpdate)
-                  ListTile(
-                      title: Text(L10n.of(context).aboutCheckForUpdates),
-                      onTap: () => checkUpdate(true)),
+                ListTile(
+                    title: Text(L10n.of(context).aboutCheckForUpdates),
+                    onTap: () => checkUpdate(true)),
                 if (EnvVar.enableDonation)
                   ListTile(
                     title: Text(L10n.of(context).appDonate),

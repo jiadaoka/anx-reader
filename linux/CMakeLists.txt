@@ -4,10 +4,10 @@ project(runner LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "anx_reader")
+set(BINARY_NAME "jiaanx")
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
-set(APPLICATION_ID "com.anxcye.anx_reader")
+set(APPLICATION_ID "com.jia.jiaanx")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
@@ -117,7 +117,7 @@ install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}
 # Window / taskbar icon (loaded by my_application.cc via gtk_window_set_icon_from_file).
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../assets/icon/anx-reader-256.png"
   DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
-  RENAME "anx-reader.png"
+  RENAME "jiaanx.png"
   COMPONENT Runtime)
 
 install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"

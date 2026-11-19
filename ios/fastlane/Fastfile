@@ -93,8 +93,8 @@ platform :ios do
       export_options: {
         teamID: "28W956D5K8",
         provisioningProfiles: {
-          "com.anxcye.anxReader" => "match AppStore com.anxcye.anxReader",
-          "com.anxcye.anxReader.shareExtension" => "match AppStore com.anxcye.anxReader.shareExtension"
+          "com.jia.jiaanx" => "match AppStore com.jia.jiaanx",
+          "com.jia.jiaanx.shareExtension" => "match AppStore com.jia.jiaanx.shareExtension"
         }
       }
     )

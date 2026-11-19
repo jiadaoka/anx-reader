@@ -15,7 +15,7 @@ struct _MyApplication {
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
-// Load bundle icon (data/anx-reader.png next to the binary) onto a window.
+// Load bundle icon (data/jiaanx.png next to the binary) onto a window.
 static void my_application_apply_window_icon(GtkWindow* window) {
   g_autoptr(GError) icon_error = nullptr;
   g_autofree gchar* exe_path = g_file_read_link("/proc/self/exe", nullptr);
@@ -24,7 +24,7 @@ static void my_application_apply_window_icon(GtkWindow* window) {
   }
   g_autofree gchar* exe_dir = g_path_get_dirname(exe_path);
   g_autofree gchar* icon_path =
-      g_build_filename(exe_dir, "data", "anx-reader.png", nullptr);
+      g_build_filename(exe_dir, "data", "jiaanx.png", nullptr);
   if (!g_file_test(icon_path, G_FILE_TEST_IS_REGULAR)) {
     g_warning("Window icon not found at %s", icon_path);
     return;
@@ -72,11 +72,11 @@ static void my_application_activate(GApplication* application) {
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "Anx Reader");
+    gtk_header_bar_set_title(header_bar, "JiaAnx Reader");
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
   } else {
-    gtk_window_set_title(window, "Anx Reader");
+    gtk_window_set_title(window, "JiaAnx Reader");
   }
 
   gtk_window_set_default_size(window, 1280, 720);

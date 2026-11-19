@@ -103,6 +103,10 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
   bool bookmarkExists = false;
   WritingModeEnum writingMode = WritingModeEnum.horizontalTb;
   String? _lastSelectionContextText;
+
+  /// 划中段前后各一段正文，供剧情配图取上下文；没有就是 null。
+  String? selectionContextBefore;
+  String? selectionContextAfter;
   bool _selectionClearLocked = false;
   bool _selectionClearPending = false;
 
@@ -165,8 +169,12 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
     }
   }
 
-  void restoreReaderFocus() {
-    // CEF may still hold GTK/browser focus after a page click dismissed the
+  String? _readParagraph(Object? raw) {
+    final text = raw?.toString().trim() ?? '';
+    return text.isEmpty ? null : text;
+  }
+
+  void restoreReaderFocus() {    // CEF may still hold GTK/browser focus after a page click dismissed the
     // menu; release it so arrow keys reach Flutter again.
     webViewController.setBrowserFocus(false);
     webViewController.execute(
@@ -725,6 +733,8 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
           final rawContextText = location['contextText']?.toString();
           _lastSelectionContextText =
               (rawContextText?.trim().isEmpty ?? true) ? null : rawContextText;
+          selectionContextBefore = _readParagraph(location['contextBefore']);
+          selectionContextAfter = _readParagraph(location['contextAfter']);
           double left = (location['pos']['left'] as num).toDouble();
           double top = (location['pos']['top'] as num).toDouble();
           double right = (location['pos']['right'] as num).toDouble();
@@ -751,6 +761,8 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
             return;
           }
           _lastSelectionContextText = null;
+          selectionContextBefore = null;
+          selectionContextAfter = null;
           removeOverlay();
           restoreReaderFocus();
         });
@@ -779,6 +791,8 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
           final rawContextText = annotation['contextText']?.toString();
           _lastSelectionContextText =
               (rawContextText?.trim().isEmpty ?? true) ? null : rawContextText;
+          selectionContextBefore = null;
+          selectionContextAfter = null;
           double left = (annotation['pos']['left'] as num).toDouble();
           double top = (annotation['pos']['top'] as num).toDouble();
           double right = (annotation['pos']['right'] as num).toDouble();

@@ -18,8 +18,8 @@ class EnvVar {
 
   static bool get showIapPlaceHolder => isOhosStore;
 
-  static bool get enableCheckUpdate =>
-      !isStoreBuild && !isFdroid && !isOhosStore;
+  // JiaAnx 使用自有版本线，不再检查或提示上游 Anx Reader 的更新。
+  static bool get enableCheckUpdate => false;
   static bool get enableDonation => !isStoreBuild && !isOhosStore;
   static bool get enableInAppPurchase => isStoreBuild;
 
