@@ -10,7 +10,9 @@
 #   Variables 里配置 JIAANX_OHOS_FLUTTER_ROOT / JIAANX_DEVECO_ROOT /
 #   JIAANX_PUB_CACHE（脚本已支持这三个环境变量）。
 #
-# 产物只上传为 workflow artifact，不创建 GitHub Release，不签名。
+# 产物上传 artifact，并在 tag 上创建 GitHub Release；不签名。
+# 注意：这是 fork 仓库，Actions 页面若显示未启用，需要先手动 Enable workflows；
+#       启用前的 tag push 不会补跑，需要重新推一次 tag。
 name: Build Unsigned HarmonyOS
 
 on:
@@ -19,7 +21,7 @@ on:
       - '*'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   unsigned-hap:
@@ -167,3 +169,15 @@ jobs:
           path: build/ohos/hap/JiaAnx-*-harmonyos-arm64-unsigned.hap
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: JiaAnx ${{ github.ref_name }}
+          body: |
+            HarmonyOS arm64 未签名 HAP（release）。
+            版本：${{ github.ref_name }}
+          files: build/ohos/hap/JiaAnx-*-harmonyos-arm64-unsigned.hap
+          fail_on_unmatched_files: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
