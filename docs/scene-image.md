@@ -1,7 +1,7 @@
 # 剧情配图（JiaAnx）
 
 当前分支：`feature/jiaanx-scene-image`（从 `jia-master` 新建）。
-需求依据：`I:\Project\requirements\阅读器生图\JiaAnx-需求.md` v0.8、`提示词.md`、`design-2026-11-18/`。
+需求依据：`I:\Project\requirements\阅读器生图\JiaAnx-需求.md` v0.10、`提示词.md`、`design-2026-11-18/`。
 本文件只记录实现结构与已知差异，不是需求文档；需求以依据目录为准。
 
 ## 1 代码结构
@@ -11,11 +11,11 @@
 | 枚举 | `lib/enums/scene_task_type.dart`、`scene_task_status.dart`、`scene_orientation.dart`、`scene_character_field.dart` |
 | 模型 | `lib/models/scene_task.dart`（任务 + 历史 + 角色引用快照）、`scene_character.dart`、`scene_workflow.dart` |
 | 数据库 | `lib/dao/database.dart`（v8：`tb_scene_tasks`、`tb_scene_characters`、`tb_scene_character_fragments`、`tb_scene_workflows`）、`lib/dao/scene_*.dart` |
-| 服务 | `lib/service/scene_image/`：`comfyui_client.dart`、`prompt_base.dart`、`prompt_protocol.dart`、`prompt_engine.dart`、`character_resolver.dart`、`scene_context.dart`、`image_store.dart` |
+| 服务 | `lib/service/scene_image/`：`comfyui_client.dart`、`prompt_base.dart`、`prompt_protocol.dart`、`prompt_engine.dart`、`character_engine.dart`、`character_resolver.dart`、`scene_context.dart`、`image_store.dart` |
 | 状态 | `lib/providers/scene_tasks.dart`（`SceneTaskStore` 单例 + 提示词串行队列 + 生图轮询）、`scene_workflows.dart`、`scene_characters.dart` |
 | 设置 | `lib/page/settings_page/scene_image.dart`、`scene_prompt_settings.dart`、`scene_workflow_edit.dart` |
 | 角色 | `lib/page/scene_characters_page.dart`、`scene_character_detail_page.dart`、`lib/widgets/scene_image/scene_character_sheet.dart` |
-| 任务 UI | `lib/widgets/scene_image/scene_task_list.dart`、`scene_task_card.dart` |
+| 任务 UI | `lib/widgets/scene_image/scene_task_list.dart`（顶部「本书角色」快捷入口）、`scene_task_card.dart` |
 | 阅读页 | `lib/widgets/context_menu/excerpt_menu.dart`（两项菜单）、`lib/widgets/scene_image/scene_supplement_sheet.dart`、`lib/widgets/reading_page/toc_widget.dart`（第三个页签）、`lib/page/reading_page.dart`（完成提示）、`lib/page/book_player/epub_player.dart` + `assets/foliate-js/src/book.js`（前后段上下文） |
 
 ## 2 任务模型
@@ -44,24 +44,41 @@
 - 五个占位符：`%prompt%`、`%negative_prompt%`、`%seed%`、`%width%`、`%height%`。在 JSON 对象内递归替换；字符串恰好等于占位符时写入原始类型（数字），嵌在字符串里时写字符串；没写的占位符保持原值。
 - 保存工作流不解析 JSON、不校验占位符；出图时才解析，失败给可读原因。
 
-## 5 与依据的差异 / 已知缺口
+## 5 角色档案生成
+
+角色详情顶部一块「生成」，三个动作共用 app 现有 AI 服务：
+
+| 动作 | 输入 | 覆盖 |
+| --- | --- | --- |
+| 从片段生成全部 | 该角色的全部非空片段 | 关键字、角色简介、角色提示词七项 |
+| 只生成角色简介 | 同上 | 只覆盖角色简介 |
+| 从简介生成角色提示词 | 已有角色简介 | 只覆盖角色提示词七项 |
+
+- 生成前弹一次确认，写明会覆盖哪一块；取消则不发请求。
+- 片段为空时前两个动作不可用；简介为空时第三个不可用；AI 未配置时三个都不可用。原因显示在动作下方。
+- 生成中按设计稿把另外两个生成动作一起停掉，避免两处同时写同一块；三块内容仍可编辑。
+- 结果为空或缺少必要内容时判失败，不写入，已有内容保持不变。
+- 生成提示词与字段解析在 `character_engine.dart`；复用 `generateSceneAiAnswer` 与 `extractSceneJsonObject`。
+
+## 6 与依据的差异 / 已知缺口
 
 1. **提示词输出**：需求 §3.4「单段输出、不区分 tag 与 nl」与 `提示词.md` 的 JSON 协议冲突。按需求方选择，以 `提示词.md` 为准：保留 JSON 输出并解析，再合成单段 `%prompt%`。§3.8.2「负面不在这里产出」同样按此让位：模型返回的 negative 会用于 `%negative_prompt%`。
 2. **工作流选择控件**：需求写「下拉」，实现为设置行 + 底部弹层选择（功能等价）。设计稿 10 的「缺 %prompt% / 有效」状态按需求 §3.5 不做。
 3. **关于页设计稿**：设计稿 09 的副标题写「基于 Anx Reader」，与需求 §3.1「不写基于」冲突；实现按需求，不写「基于」。上游关于页保留「检查更新」条目以满足「原条目不删」，但点击为静默 no-op（`EnvVar.enableCheckUpdate=false`）。
 4. **来源位置**：存章名 + CFI + 阅读进度，没有单独存段序号；角色片段与任务卡都没有「跳回原文」动作。
-5. **角色简介**：可手改，但没有「从片段自动提取」按钮。
-6. **重试种子**：每次重试/再生图生成新种子（同种子会得到同一张图，重试就无意义）；旧的种子随历史记录保留。
-7. **画幅记录**：工作流没写 `%width%/%height%` 时，任务凭据记录的是按方向选出的尺寸，实际尺寸由工作流决定，无法从 ComfyUI history 反查。
-8. **zh-TW**：新增文案只补了 en / zh / zh-CN；zh-TW 及其它 locale 回落英文。
-9. **旧 WebView**：只改了 `assets/foliate-js/src/book.js`，`dist/bundle.js` 未重编；Chrome <100 / 非 Apple 的旧路径拿不到前后段，任务会标上下文不足。
-10. **取消执行中**：旧版 ComfyUI 的 `/interrupt` 不支持按 prompt_id，可能影响同机其它任务；新版无此问题。
-11. **测试**：未新增/修改测试文件（本轮未获测试授权）。
+5. **角色生成的提示词**：需求只规定三个动作与覆盖范围，没有给具体提示词文本；本实现自拟提示词，只依据片段/简介，缺失字段留空，不推断。
+6. **生成互斥**：需求 §3.6 写「生成中只锁正在跑的那一个」，设计稿 05 的「正在生成」变体把另外两个生成动作也置灰并注明「生成中会把另外两个一起停掉」；按需求方选择以设计稿为准。设计稿脚注还提到可以取消，但没有给控件，需求未要求，本轮未实现取消。
+7. **重试种子**：每次重试/再生图生成新种子（同种子会得到同一张图，重试就无意义）；旧的种子随历史记录保留。
+8. **画幅记录**：工作流没写 `%width%/%height%` 时，任务凭据记录的是按方向选出的尺寸，实际尺寸由工作流决定，无法从 ComfyUI history 反查。
+9. **zh-TW**：新增文案只补了 en / zh / zh-CN；zh-TW 及其它 locale 回落英文。
+10. **旧 WebView**：只改了 `assets/foliate-js/src/book.js`，`dist/bundle.js` 未重编；Chrome <100 / 非 Apple 的旧路径拿不到前后段，任务会标上下文不足。
+11. **取消执行中**：旧版 ComfyUI 的 `/interrupt` 不支持按 prompt_id，可能影响同机其它任务；新版无此问题。
+12. **测试**：未新增/修改测试文件（本轮未获测试授权）。
 
-## 6 待跑命令（由开发者执行）
+## 7 待跑命令（由开发者执行）
 
 ```bash
-# 1) 必须先生成本地化，否则 scene* getter 不存在
+# 1) 必须先生成本地化，否则新增 scene* getter 不存在
 flutter gen-l10n
 
 # 2) 静态检查
@@ -73,16 +90,17 @@ flutter test
 # 4) 手动冒烟
 #    设置 → 更多设置 → 剧情配图：开关 / ComfyUI 连接 / 工作流新建与切换 / 提示词四段
 #    阅读页划词：画这一幕（补充留空与填写各一次）/ 归入角色
-#    抽屉 → 任务：排队、展开凭据、翻历史、编辑、生图、查看、重试、取消、清理
+#    抽屉 → 任务：顶部「本书角色」往返、排队、展开凭据、翻历史、编辑、生图、查看、重试、取消、清理
+#    角色详情：三个生成动作、覆盖前确认、片段/简介为空时的禁用原因、AI 未配置时的禁用原因
 #    换书后确认任务不串书；重启后确认任务与图仍在
 
 # 5) 若要让旧 WebView 也拿到段落上下文（会刷新其它 dist 产物）
 cd assets/foliate-js && npm install && npx webpack
 ```
 
-## 7 已验证 / 未验证
+## 8 已验证 / 未验证
 
-已构建（2026-11-20）：
+已构建（2026-11-20，构建时包含 v0.8 实现，**不包含 v0.9/v0.10 的角色生成与任务页快捷入口**）：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build_ohos.ps1   # 默认 debug + x64 + --no-codesign
@@ -91,9 +109,10 @@ powershell -ExecutionPolicy Bypass -File scripts\build_ohos.ps1   # 默认 debug
 - 产物：`build/ohos/hap/entry-default-unsigned.hap`（209.6 MB，未签名）。
 - HAP 内 `module.json`：`bundleName=com.jia.jiaanx`、`versionName=0.1.0`、`versionCode=1`。
 - 该包面向 x64 模拟器；真机需要重新用 `-Signed` 构建并在 DevEco 配好签名。
+- v0.9/v0.10 改动后尚未重新构建。
 
 未验证：
 
-- `flutter analyze` 与 `flutter test` 未单独执行（鸿蒙构建已实际编译过 Dart，并跑通 `gen-l10n`）。
-- Android / iOS / macOS / Windows / Linux 未构建。
+- `flutter analyze` 与 `flutter test` 未单独执行。
+- v0.9/v0.10 新增代码尚未经过编译；其余平台未构建。
 - 未连真实 ComfyUI / AI 服务做端到端手测；未点过任何界面。

@@ -33,7 +33,7 @@ Future<ScenePromptResult> generateScenePrompt({
   required bool contextComplete,
   required List<SceneTaskCharacterRef> refs,
 }) async {
-  _ensureAiConfigured();
+  ensureSceneAiConfigured();
 
   final prefs = Prefs();
   final messages = <ChatMessage>[];
@@ -64,9 +64,24 @@ Future<ScenePromptResult> generateScenePrompt({
     refs: refs,
   )));
 
+  final answer = await generateSceneAiAnswer(messages);
+  try {
+    return parseScenePromptResult(answer);
+  } on ScenePromptFormatException catch (e) {
+    throw ScenePromptException(e.message);
+  }
+}
+
+/// 走 app 现有 AI 服务取一段完整回答（已剥掉思考信封）。
+///
+/// 供提示词生成与角色档案生成共用；[messages] 由调用方按各自协议组装。
+Future<String> generateSceneAiAnswer(
+  List<ChatMessage> messages, {
+  Duration timeout = scenePromptTimeout,
+}) async {
   String? lastChunk;
   try {
-    final stream = aiGenerateStream(messages).timeout(scenePromptTimeout);
+    final stream = aiGenerateStream(messages).timeout(timeout);
     await for (final chunk in stream) {
       if (chunk.startsWith('Error: ')) {
         throw ScenePromptException('AI 服务返回错误：${chunk.substring(7)}');
@@ -87,13 +102,20 @@ Future<ScenePromptResult> generateScenePrompt({
 
   final answer = splitReasoningEnvelope(lastChunk).answerContent.trim();
   if (answer.isEmpty) {
-    throw ScenePromptException('AI 只返回了思考过程，没有提示词正文');
+    throw ScenePromptException('AI 只返回了思考过程，没有正文');
   }
+  return answer;
+}
 
+void ensureSceneAiConfigured() => _ensureAiConfigured();
+
+/// 供界面判断生成动作是否可用；可用返回 null，不可用返回原因。
+String? sceneAiUnavailableReason() {
   try {
-    return parseScenePromptResult(answer);
-  } on ScenePromptFormatException catch (e) {
-    throw ScenePromptException(e.message);
+    _ensureAiConfigured();
+    return null;
+  } on ScenePromptException catch (e) {
+    return e.message;
   }
 }
 

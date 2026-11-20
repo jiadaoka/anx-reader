@@ -3,6 +3,8 @@ import 'package:anx_reader/enums/scene_character_field.dart';
 import 'package:anx_reader/l10n/generated/L10n.dart';
 import 'package:anx_reader/models/scene_character.dart';
 import 'package:anx_reader/providers/scene_characters.dart';
+import 'package:anx_reader/service/scene_image/character_engine.dart';
+import 'package:anx_reader/service/scene_image/prompt_engine.dart';
 import 'package:anx_reader/utils/toast/common.dart';
 import 'package:anx_reader/widgets/common/container/filled_container.dart';
 import 'package:anx_reader/widgets/delete_confirm.dart';
@@ -31,6 +33,7 @@ class _SceneCharacterDetailPageState
     extends ConsumerState<SceneCharacterDetailPage> {
   final Map<SceneCharacterField, TextEditingController> _promptControllers = {};
   TextEditingController? _bioController;
+  CharacterGenerationAction? _runningAction;
 
   @override
   void dispose() {
@@ -45,6 +48,7 @@ class _SceneCharacterDetailPageState
   Widget build(BuildContext context) {
     final l10n = L10n.of(context);
     final charactersAsync = ref.watch(sceneCharactersProvider(widget.bookId));
+    final aiUnavailableReason = sceneAiUnavailableReason();
     final title = _findCharacter(charactersAsync.valueOrNull)?.name ??
         l10n.sceneCharacterTitle;
 
@@ -83,6 +87,7 @@ class _SceneCharacterDetailPageState
           _ensureControllers(character);
           return settingsSections(
             sections: [
+              _generationSection(context, character, aiUnavailableReason),
               _keywordsSection(context, character),
               _bioSection(context, character),
               _promptSection(context, character),
@@ -145,6 +150,278 @@ class _SceneCharacterDetailPageState
           text: character.promptFields[field.code] ?? '',
         ),
       );
+    }
+  }
+
+  SettingsSection _generationSection(
+    BuildContext context,
+    SceneCharacter character,
+    String? aiUnavailableReason,
+  ) {
+    final l10n = L10n.of(context);
+    final theme = Theme.of(context);
+    final fragmentCount = character.fragments
+        .where((fragment) => fragment.text.trim().isNotEmpty)
+        .length;
+    final hasFragments = fragmentCount > 0;
+    final hasBio = character.bio.trim().isNotEmpty;
+    final running = _runningAction;
+    final canRun = running == null && aiUnavailableReason == null;
+
+    String note;
+    Color noteColor = theme.colorScheme.onSurfaceVariant;
+    if (running != null) {
+      note = l10n.sceneCharacterGenerateLockedHint;
+    } else if (aiUnavailableReason != null) {
+      note = aiUnavailableReason;
+      noteColor = theme.colorScheme.error;
+    } else if (!hasFragments && !hasBio) {
+      note = l10n.sceneCharacterGenerateNoSource;
+    } else if (!hasFragments) {
+      note = l10n.sceneCharacterGenerateNoFragments;
+    } else if (!hasBio) {
+      note = l10n.sceneCharacterGenerateNoBio;
+    } else {
+      note = l10n.sceneCharacterGenerateHint;
+    }
+
+    return SettingsSection(
+      title: Text(l10n.sceneCharacterGenerateSection),
+      tiles: [
+        CustomSettingsTile(
+          child: Column(
+            children: [
+              _generationButton(
+                context,
+                title: l10n.sceneCharacterGenerateAll,
+                subtitle: l10n.sceneCharacterGenerateAllHint,
+                running: running == CharacterGenerationAction.all,
+                enabled: canRun && hasFragments,
+                fragmentCount: fragmentCount,
+                onTap: canRun && hasFragments
+                    ? () => _runGeneration(character, CharacterGenerationAction.all)
+                    : null,
+              ),
+              const Divider(height: 1, indent: 16, endIndent: 16),
+              _generationButton(
+                context,
+                title: l10n.sceneCharacterGenerateBio,
+                subtitle: l10n.sceneCharacterGenerateBioHint,
+                running: running == CharacterGenerationAction.bioOnly,
+                enabled: canRun && hasFragments,
+                fragmentCount: fragmentCount,
+                onTap: canRun && hasFragments
+                    ? () =>
+                        _runGeneration(character, CharacterGenerationAction.bioOnly)
+                    : null,
+              ),
+              const Divider(height: 1, indent: 16, endIndent: 16),
+              _generationButton(
+                context,
+                title: l10n.sceneCharacterGeneratePrompt,
+                subtitle: l10n.sceneCharacterGeneratePromptHint,
+                running: running == CharacterGenerationAction.promptOnly,
+                enabled: canRun && hasBio,
+                fragmentCount: 0,
+                onTap: canRun && hasBio
+                    ? () => _runGeneration(
+                          character,
+                          CharacterGenerationAction.promptOnly,
+                        )
+                    : null,
+              ),
+            ],
+          ),
+        ),
+        CustomSettingsTile(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+            child: Text(
+              note,
+              style: theme.textTheme.bodySmall?.copyWith(color: noteColor),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _generationButton(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required bool running,
+    required bool enabled,
+    required int fragmentCount,
+    required VoidCallback? onTap,
+  }) {
+    final l10n = L10n.of(context);
+    final theme = Theme.of(context);
+    final runningText = fragmentCount > 0
+        ? l10n.sceneCharacterGenerateReading(fragmentCount)
+        : l10n.sceneCharacterGenerateRunning;
+
+    return Opacity(
+      opacity: enabled || running ? 1.0 : 0.45,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 11, 14, 11),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      running ? runningText : subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (running)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: enabled
+                        ? theme.colorScheme.primaryContainer
+                        : theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    l10n.sceneCharacterGenerateAction,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: enabled
+                          ? theme.colorScheme.onPrimaryContainer
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _confirmGeneration(CharacterGenerationAction action) async {
+    final l10n = L10n.of(context);
+    final body = switch (action) {
+      CharacterGenerationAction.all => l10n.sceneCharacterGenerateConfirmAll,
+      CharacterGenerationAction.bioOnly =>
+        l10n.sceneCharacterGenerateConfirmBio,
+      CharacterGenerationAction.promptOnly =>
+        l10n.sceneCharacterGenerateConfirmPrompt,
+    };
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.sceneCharacterGenerateConfirmTitle),
+        content: Text(body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.sceneCharacterGenerateContinue),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
+  Future<void> _runGeneration(
+    SceneCharacter character,
+    CharacterGenerationAction action,
+  ) async {
+    if (_runningAction != null) return;
+    final confirmed = await _confirmGeneration(action);
+    if (!confirmed || !mounted) return;
+
+    setState(() => _runningAction = action);
+    try {
+      final result = await generateCharacterData(
+        action: action,
+        character: character,
+      );
+      if (!mounted) return;
+      setState(() => _applyGenerationResult(character, action, result));
+      await _saveCharacter(character, showToast: false);
+      if (!mounted) return;
+      AnxToast.show(L10n.of(context).sceneCharacterGenerateDone);
+    } on CharacterGenerationException catch (e) {
+      if (mounted) {
+        AnxToast.show(L10n.of(context).sceneCharacterGenerateFailed(e.message));
+      }
+    } catch (e) {
+      if (mounted) {
+        AnxToast.show(L10n.of(context).sceneCharacterGenerateFailed('$e'));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _runningAction = null);
+      }
+    }
+  }
+
+  void _applyGenerationResult(
+    SceneCharacter character,
+    CharacterGenerationAction action,
+    CharacterGenerationResult result,
+  ) {
+    switch (action) {
+      case CharacterGenerationAction.all: {
+        final keywords = result.keywords;
+        if (keywords != null) {
+          character.keywords = List<String>.from(keywords);
+        }
+        character.bio = result.bio ?? '';
+        _bioController?.text = character.bio;
+        _applyPromptFields(character, result.promptFields);
+        break;
+      }
+      case CharacterGenerationAction.bioOnly: {
+        character.bio = result.bio ?? '';
+        _bioController?.text = character.bio;
+        break;
+      }
+      case CharacterGenerationAction.promptOnly: {
+        _applyPromptFields(character, result.promptFields);
+        break;
+      }
+    }
+  }
+
+  void _applyPromptFields(
+    SceneCharacter character,
+    Map<String, String>? fields,
+  ) {
+    if (fields == null) return;
+    character.promptFields = Map<String, String>.from(fields);
+    for (final field in SceneCharacterField.values) {
+      _promptControllers[field]?.text = fields[field.code] ?? '';
     }
   }
 
@@ -226,6 +503,13 @@ class _SceneCharacterDetailPageState
                 TextButton(
                   onPressed: () => _saveCharacter(character),
                   child: Text(l10n.commonSave),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    l10n.sceneCharacterBioHint,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ),
               ],
             ),

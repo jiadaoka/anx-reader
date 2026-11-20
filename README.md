@@ -1,164 +1,34 @@
-**English** | [简体中文](README_zh.md) | [Türkçe](README_tr.md) | [Русский](README_RU.md)
+# JiaAnx 📚✨
 
-<br>
+> 一个按个人阅读习惯慢慢改的阅读器。
 
-<p align="center">
-  <img src="./docs/images/Anx-logo.jpg" alt="Anx-logo" width="100" />
-</p>
-<h1 align="center">Anx Reader</h1>
-<p align="center"><a href="https://trendshift.io/repositories/10329" target="_blank"><img src="https://trendshift.io/api/badge/repositories/10329" alt="Anxcye%2Fanx-reader | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a></p>
+JiaAnx 是 [Anx Reader](https://github.com/Anxcye/anx-reader) 的个人 fork。
 
-<p align="center">
-  <a href="https://github.com/Anxcye/anx-reader#platform-support"><img src="https://img.shields.io/badge/platform-windows%20%7C%20macos%20%7C%20iOS%20%7C%20Android-lightgrey" alt="Platforms"></a>
-  <a href="https://github.com/Anxcye/anx-reader#supported-formats"><img src="https://img.shields.io/badge/formats-epub%20%7C%20fb2%20%7C%20mobi%20%7C%20txt%20%7C%20azw3%20%7C%20pdf-brightgreen" alt="Supported Formats"></a>
-</p>
+## ✨ 功能
 
-<p align="center">
-  <a href="https://github.com/Anxcye/anx-reader/releases/latest"><img src="https://img.shields.io/github/v/release/anxcye/anx-reader" alt="Latest Release"></a>
-  <a href="https://github.com/Anxcye/anx-reader/releases"><img src="https://img.shields.io/github/v/release/anxcye/anx-reader?include_prereleases" alt="Pre-release"></a>
-  <a href="https://github.com/Anxcye/anx-reader/blob/main/LICENSE"><img src="https://img.shields.io/github/license/anxcye/anx-reader" alt="License" ></a>
-  <a href="https://github.com/Anxcye/anx-reader/releases"><img src="https://img.shields.io/github/downloads/anxcye/anx-reader/total" alt="Downloads"></a>
-  <a href="https://hellogithub.com/repository/819a2b3050204451bed552a8812114e5" target="_blank"><img src="https://abroad.hellogithub.com/v1/widgets/recommend.svg?rid=819a2b3050204451bed552a8812114e5&claim_uid=WBA1XOQirm2GRqs&theme=small" alt="Featured｜HelloGitHub"/></a>
-  <a href="https://github.com/anxcye/anx-reader/stargazers"><img src="https://img.shields.io/github/stars/anxcye/anx-reader" alt="stars"></a>
-</p>
+### 🎨 生图
 
-Anx Reader, a thoughtfully crafted e-book reader for book lovers. Featuring powerful AI capabilities and supporting various e-book formats, it makes reading smarter and more focused. With its modern interface design, we're committed to delivering pure reading pleasure.
+在正文里划一段，把刚读到的那一幕画出来。
 
+#### 怎么用
 
-![](./docs/images/main.jpg)
+1. **配 AI**：设置 → AI，选一个可用的服务和模型。提示词和角色生成都用它。
+2. **配 ComfyUI**：设置 → 更多设置 → 剧情配图，填地址，贴一套 ComfyUI「Save (API Format)」导出的工作流，点测试。
+3. **画一幕**：正文划词 → 画这一幕 → 写一句补充（可空）→ 生成提示词。
+4. **出图**：抽屉 → 任务 → 点「生图」→ 查看。
+5. **建角色**（可选）：任务页顶部「本书角色」或设置 → 剧情配图 → 角色档案；也可以划词「归入角色」。
 
+#### 说明
 
-| Feature | Details | Status |
-| --- | --- | --- |
-| Format Support | EPUB/MOBI/AZW3/FB2/TXT/PDF fully supported | ✅ |
-| Cross-Platform Sync | Android/iOS/macOS/Windows coverage<br>Sync books, notes, and reading progress via WebDAV | ✅ |
-| AI Assistant | Organizes shelves by progress and tone<br>Generates mind maps for deeper understanding<br>On-demand AI dictionary and translation<br>Delivers perspective analysis and summaries | ✅ |
-| Custom Reading Experience | Tune letter, line, paragraph, and margin spacing<br>Adjust font size, style, and weight<br>Customize themes, backgrounds, alignment, and styles | ✅ |
-| Notes Workspace | Multiple color/style presets<br>Sort by time or chapter with color filters<br>Export to TXT/Markdown/CSV<br>Create shareable, well-designed cards | ✅ |
-| Reading Insights | Track reading time<br>View daily/weekly/monthly/yearly stats<br>Visual heatmap reveals reading habits | ✅ |
-| Advanced Extras | TTS with multi-voice, speed, tone, and sleep timer controls<br>Full-book translation with side-by-side view<br>Store books in the cloud and download on demand<br>One-tap simplified/traditional Chinese conversion | ✅ |
-| OPDS Catalogs | Built-in OPDS support with custom catalog management | 🛠️ In progress |
+- 提示词和生图分开：提示词完成后不会自动出图，点「生图」才画；画之前可以编辑提示词。
+- 提示词四段可改：设置 → 剧情配图 → 提示词；留空用内置，破限有开关。
+- 角色按书独立：关键字命中才把角色提示词与片段带进提示词；角色详情可生成全部 / 只简介 / 简介→提示词。
+- 任务按书隔离：历史左右翻，凭据可展开，支持重试、取消、清理。
+- 工作流五个占位符：`%prompt%`、`%negative_prompt%`、`%seed%`、`%width%`、`%height%`；可存多套切换。
+- 看图复用阅读器现有的全屏看图页；图片落在应用私有目录。
+- 需要本机 ComfyUI 和 app 现有 AI 服务；缺哪边会直接说原因。一次出一张，重试进历史。
 
+## 🧱 底座与参考
 
-<table border="1">
-  <tr>
-    <th>OS</th>
-    <th>Source</th>
-  </tr>
-  <tr>
-    <td>iOS</td>
-    <td>
-      <a href="https://apps.apple.com/app/anx-reader/id6743196413" target="_blank">
-        <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="App Store" height="45"/>
-      </a>
-    </td>
-  </tr>
-  <tr>
-    <td>macOS</td>
-    <td>
-      <a href="https://apps.apple.com/app/anx-reader/id6743196413" target="_blank"><img src="https://developer.apple.com/app-store/marketing/guidelines/images/badge-download-on-the-mac-app-store.svg" alt="Mac App Store" height="45"/></a>
-      <a href="https://github.com/Anxcye/anx-reader/releases/latest" target="_blank"><img src="https://github.com/user-attachments/assets/cf61e197-d756-4606-a8ad-fb591f79fdfc" alt="GitHub" height="45"/></a>
-    </td>
-  </tr>
-  <tr>
-    <td>Windows</td>
-    <td>
-      <a href="https://github.com/Anxcye/anx-reader/releases/latest" target="_blank">
-        <img src="https://github.com/user-attachments/assets/cf61e197-d756-4606-a8ad-fb591f79fdfc" alt="GitHub" height="45"/>
-      </a>
-    </td>
-  </tr>
-  <tr>
-    <td>Android</td>
-    <td>
-      <a href="https://github.com/Anxcye/anx-reader/releases/latest" target="_blank">
-        <img src="https://github.com/user-attachments/assets/cf61e197-d756-4606-a8ad-fb591f79fdfc" alt="GitHub" height="45"/>
-      </a>
-      <a href="https://f-droid.org/packages/com.anxcye.anx_reader" target="_blank">
-        <img src="./docs/get-it-on.png" alt="Get it on F-Droid" height="45" />
-      </a>
-    </td>
-  </tr>
-</table>
-
-
-
-
-
-
-## Community Projects
-The following projects are maintained by the community and not officially supported. For issues or feedback related to these projects, please contact the respective project maintainers.
-
-**Calibre Plugin** [anx-reader-calibre-plugin](https://github.com/ptbsare/anx-reader-calibre-plugin)
-
-A Calibre plugin that enables direct management of your ANX Reader ebook library from Calibre. Particularly useful for NAS users looking to centralize their ebook collection.
-
-
-**Web Library Manager** [anx-calibre-manager](https://github.com/ptbsare/anx-calibre-manager)
-
-A modern web application for managing your ebook library with Calibre integration and WebDAV server functionality for ANX Reader devices.
-
-
-## I Encountered a Problem, What Should I Do?
-Check [Troubleshooting](./docs/troubleshooting.md#English)
-
-Submit an [issue](https://github.com/Anxcye/anx-reader/issues/new/choose), and we will respond as soon as possible.
-
-Telegram Group: [https://t.me/AnxReader](https://t.me/AnxReader)
-
-QQ Group：1042905699
-
-### Screenshots
-| ![](./docs/images/wide1.png) | ![](./docs/images/wide2.png) |
-| :------------------------------: | :----------------------------: |
-|   ![](./docs/images/wide3.png)   |  ![](./docs/images/wide4.png)  |
-|   ![](./docs/images/wide5.png)   |  ![](./docs/images/wide6.png)  |
-|   ![](./docs/images/wide7.png)   |  ![](./docs/images/wide8.png)  |
-
-
-| ![](./docs/images/mobile1.png) | ![](./docs/images/mobile2.png) | ![](./docs/images/mobile3.png) |
-| :----------------------------: | :----------------------------: | :----------------------------: |
-| ![](./docs/images/mobile4.png) | ![](./docs/images/mobile5.png) | ![](./docs/images/mobile6.png) |
-| ![](./docs/images/mobile7.png) | ![](./docs/images/mobile8.png) | ![](./docs/images/mobile9.png) |
-
-## Donations
-If you like Anx Reader, please consider supporting the project by donating. Your donation will help me maintain and improve the project.
-
-❤️ [Donate](https://anxcye.com/home/7)
-
-## Building
-Want to build Anx Reader from source? Please follow these steps:
-- Install [Flutter](https://flutter.dev).
-- Clone and enter the project directory.
-- Run `flutter pub get`.
-- Run `flutter gen-l10n` to generate multi-language files.
-- Run `dart run build_runner build --delete-conflicting-outputs` to generate the Riverpod code.
-- Run `flutter run` to launch the application.
-
-You may encounter Flutter version incompatibility issues. Please refer to the [Flutter documentation](https://flutter.dev/docs/get-started/install).
-
-
-## Code signing policy
-- Committers and reviewers: [Members team](https://github.com/anxcye/anx-reader/graphs/contributors)
-- Approvers: [Owners](https://github.com/anxcye)
-- [Privacy Policy](https://anx.anxcye.com/privacy.html)
-- [Terms of Service](https://anx.anxcye.com/terms.html)
-
-### Sponsors
-| ![signpath](https://signpath.org/assets/favicon-50x50.png) | Free code signing on Windows provided by [SignPath.io](https://about.signpath.io/),certficate by [SignPath Foundation](https://signpath.org/) |
-|------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
-
-
-## License
-This project is licensed under the [MIT License](./LICENSE).
-
-Starting from version 1.1.4, the open source license for the Anx Reader project has been changed from the MIT License to the GNU General Public License version 3 (GPLv3).
-
-After version 1.2.6, the selection and highlight feature has been rewritten, and the open source license has been changed from the GPL-3.0 License to the MIT License. All contributors agree to this change(#116).
-
-## Thanks
-[foliate-js](https://github.com/johnfactotum/foliate-js), which is MIT licensed, it used as the ebook renderer. Thanks to the author for providing such a great project.
-
-[foliate](https://github.com/johnfactotum/foliate), which is GPL-3.0 licensed, selection and highlight feature is inspired by this project. But since 1.2.6, the selection and highlight feature has been rewritten.
-
-And many [other open source projects](./pubspec.yaml), thanks to all the authors for their contributions.
+- **底座**：[Anx Reader](https://github.com/Anxcye/anx-reader)。阅读器本体、渲染与大部分基础能力来自上游；本项目按个人阅读习惯逐步加功能，目前是生图。
+- **画图参考**：[ST-BaiBai-Image](https://github.com/baibai-git/ST-BaiBai-Image)。

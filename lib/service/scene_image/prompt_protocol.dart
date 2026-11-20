@@ -103,6 +103,17 @@ String buildSceneUserMessage({
   return buffer.toString().trimRight();
 }
 
+/// 从模型回复里取第一个可解析的 JSON 对象文本。
+///
+/// 容忍 <thinking>、``` 代码块与对象前后的说明文字；找不到返回 null。
+String? extractSceneJsonObject(String raw) {
+  final withoutThinking = _stripThinking(raw).trim();
+  if (withoutThinking.isEmpty) return null;
+  final block = _firstCodeBlock(withoutThinking);
+  final candidate = block ?? withoutThinking;
+  return _firstJsonObject(candidate);
+}
+
 /// 从模型回复里取 JSON。容忍 <thinking>、代码块、前后废话。
 ScenePromptResult parseScenePromptResult(String raw) {
   final withoutThinking = _stripThinking(raw).trim();
@@ -110,9 +121,7 @@ ScenePromptResult parseScenePromptResult(String raw) {
     throw ScenePromptFormatException('模型没有返回内容');
   }
 
-  final block = _firstCodeBlock(withoutThinking);
-  final candidate = block ?? withoutThinking;
-  final jsonText = _firstJsonObject(candidate);
+  final jsonText = extractSceneJsonObject(raw);
   if (jsonText == null) {
     throw ScenePromptFormatException('模型回复里没有可解析的 JSON 对象');
   }

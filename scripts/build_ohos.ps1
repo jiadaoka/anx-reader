@@ -34,9 +34,26 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
-$flutterSdk = 'I:\sdk\flutter'
-$devecoRoot = 'D:\Program Files\Huawei\DevEco Studio'
-$python = 'python'
+$flutterSdk = if ([string]::IsNullOrWhiteSpace($env:JIAANX_OHOS_FLUTTER_ROOT)) {
+    'I:\sdk\flutter'
+} else {
+    $env:JIAANX_OHOS_FLUTTER_ROOT.Trim()
+}
+$devecoRoot = if ([string]::IsNullOrWhiteSpace($env:JIAANX_DEVECO_ROOT)) {
+    'D:\Program Files\Huawei\DevEco Studio'
+} else {
+    $env:JIAANX_DEVECO_ROOT.Trim()
+}
+$pubCache = if ([string]::IsNullOrWhiteSpace($env:JIAANX_PUB_CACHE)) {
+    'I:\pub_cache'
+} else {
+    $env:JIAANX_PUB_CACHE.Trim()
+}
+$python = if ([string]::IsNullOrWhiteSpace($env:JIAANX_PYTHON)) {
+    'python'
+} else {
+    $env:JIAANX_PYTHON.Trim()
+}
 $buildExit = 1
 
 function Write-Step {
@@ -52,7 +69,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $devecoRoot 'tools\hvigor\bin\hvigor
 }
 
 $env:FLUTTER_ROOT = $flutterSdk
-$env:PUB_CACHE = 'I:\pub_cache'
+$env:PUB_CACHE = $pubCache
 $env:FLUTTER_STORAGE_BASE_URL = 'https://flutter-ohos.obs.cn-south-1.myhuaweicloud.com'
 $env:HOS_SDK_HOME = Join-Path $devecoRoot 'sdk'
 $env:DEVECO_SDK_HOME = $env:HOS_SDK_HOME

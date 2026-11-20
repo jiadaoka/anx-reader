@@ -1,0 +1,169 @@
+# 打 tag 即构建未签名鸿蒙包（release / arm64）。
+# 线上版本只取 tag 的 X.Y.Z（可带 -rc.1），不使用构建号；tag 里的 +N 会被忽略。
+# 鸿蒙的 versionCode 不能为空，这里按 X.Y.Z 稳定换算，不是构建号。
+# 构建前只改本次工作区的 pubspec.yaml / ohos/AppScope/app.json5，不回写仓库。
+#
+# 运行前提：
+# - 一台 Windows self-hosted runner，带 self-hosted / Windows / ohos 标签；
+# - runner 上已装好鸿蒙版 Flutter、DevEco Studio、Python；
+# - 默认路径与 scripts/build_ohos.ps1 一致；如果 runner 路径不同，在仓库
+#   Variables 里配置 JIAANX_OHOS_FLUTTER_ROOT / JIAANX_DEVECO_ROOT /
+#   JIAANX_PUB_CACHE（脚本已支持这三个环境变量）。
+#
+# 产物只上传为 workflow artifact，不创建 GitHub Release，不签名。
+name: Build Unsigned HarmonyOS
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: read
+
+jobs:
+  unsigned-hap:
+    runs-on: [self-hosted, Windows, ohos]
+    timeout-minutes: 90
+    env:
+      JIAANX_OHOS_FLUTTER_ROOT: ${{ vars.JIAANX_OHOS_FLUTTER_ROOT }}
+      JIAANX_DEVECO_ROOT: ${{ vars.JIAANX_DEVECO_ROOT }}
+      JIAANX_PUB_CACHE: ${{ vars.JIAANX_PUB_CACHE }}
+      JIAANX_PYTHON: ${{ vars.JIAANX_PYTHON }}
+
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@v4
+
+      - name: Resolve tag version
+        shell: powershell
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $raw = $tag -replace '^v', ''
+          $plusIndex = $raw.IndexOf('+')
+          if ($plusIndex -ge 0) {
+            $versionName = $raw.Substring(0, $plusIndex).Trim()
+          } else {
+            $versionName = $raw.Trim()
+          }
+          if ($versionName -notmatch '^([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z.-]+))?$') {
+            throw "tag 版本必须形如 vX.Y.Z 或 vX.Y.Z-rc.1：$tag"
+          }
+
+          $major = [int]$Matches[1]
+          $minor = [int]$Matches[2]
+          $patch = [int]$Matches[3]
+          $preRelease = $Matches[4]
+          if ($major -gt 999 -or $minor -gt 99 -or $patch -gt 99) {
+            throw "版本段超出可换算范围：$versionName"
+          }
+
+          # 线上不写构建号；versionCode 只做安装升级用的稳定换算。
+          # X.Y.Z -> major*1000000 + minor*10000 + patch*100 + (预发布序号 1..98 / 正式 99)
+          $suffix = 99
+          if (-not [string]::IsNullOrEmpty($preRelease)) {
+            $suffix = 1
+            if ($preRelease -match '(\d+)$') {
+              $suffix = [int]$Matches[1]
+            }
+            if ($suffix -lt 1) { $suffix = 1 }
+            if ($suffix -gt 98) { $suffix = 98 }
+          }
+          $versionCode = $major * 1000000 + $minor * 10000 + $patch * 100 + $suffix
+
+          Add-Content -Path $env:GITHUB_ENV -Value "JIAANX_TAG=$tag" -Encoding utf8
+          Add-Content -Path $env:GITHUB_ENV -Value "JIAANX_VERSION=$versionName" -Encoding utf8
+          Add-Content -Path $env:GITHUB_ENV -Value "JIAANX_VERSION_CODE=$versionCode" -Encoding utf8
+          Write-Host "tag=$tag version=$versionName versionCode=$versionCode"
+
+      - name: Inject version from tag
+        shell: powershell
+        run: |
+          $versionName = $env:JIAANX_VERSION
+          $versionCode = $env:JIAANX_VERSION_CODE
+
+          function Write-Utf8NoBom([string]$Path, [string]$Content) {
+            $fullPath = (Resolve-Path -LiteralPath $Path).Path
+            $utf8 = New-Object -TypeName System.Text.UTF8Encoding -ArgumentList $false
+            [System.IO.File]::WriteAllText($fullPath, $Content, $utf8)
+          }
+
+          $pubspecPath = 'pubspec.yaml'
+          $pubspec = Get-Content -Raw -Encoding UTF8 -LiteralPath $pubspecPath
+          if ($pubspec -notmatch '(?m)^version:\s*') {
+            throw "pubspec.yaml 里没有 version: 行"
+          }
+          $pubspec = $pubspec -replace '(?m)^version:\s*.*$', "version: $versionName"
+          Write-Utf8NoBom $pubspecPath $pubspec
+
+          $appPath = 'ohos/AppScope/app.json5'
+          $app = Get-Content -Raw -Encoding UTF8 -LiteralPath $appPath
+          if ($app -notmatch '"versionCode"' -or $app -notmatch '"versionName"') {
+            throw "ohos/AppScope/app.json5 里缺少 versionCode / versionName"
+          }
+          $app = $app -replace '"versionCode"\s*:\s*\d+', "`"versionCode`": $versionCode"
+          $app = $app -replace '"versionName"\s*:\s*"[^"]*"', "`"versionName`": `"$versionName`""
+          Write-Utf8NoBom $appPath $app
+
+          Write-Host "pubspec:"
+          Select-String -Path $pubspecPath -Pattern '^version:'
+          Write-Host "ohos:"
+          Select-String -Path $appPath -Pattern 'version(Code|Name)'
+
+      - name: Build release unsigned HAP
+        shell: powershell
+        run: |
+          .\scripts\build_ohos.ps1 -Mode release -Arch arm64
+
+      - name: Verify and rename artifact
+        shell: powershell
+        run: |
+          $source = "build/ohos/hap/entry-default-unsigned.hap"
+          if (-not (Test-Path -LiteralPath $source)) {
+            throw "构建没有产出 HAP：$source"
+          }
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $source).Path)
+          try {
+            $entry = $zip.GetEntry('module.json')
+            if ($null -eq $entry) {
+              throw "HAP 里没有 module.json"
+            }
+            $stream = $entry.Open()
+            $reader = New-Object -TypeName System.IO.StreamReader -ArgumentList $stream
+            try {
+              $module = $reader.ReadToEnd() | ConvertFrom-Json
+            } finally {
+              $reader.Dispose()
+            }
+          } finally {
+            $zip.Dispose()
+          }
+
+          if ([string]$module.app.versionName -ne [string]$env:JIAANX_VERSION) {
+            throw "HAP 版本名不符：$($module.app.versionName) != $env:JIAANX_VERSION"
+          }
+          if ([string]$module.app.versionCode -ne [string]$env:JIAANX_VERSION_CODE) {
+            throw "HAP 版本号不符：$($module.app.versionCode) != $env:JIAANX_VERSION_CODE"
+          }
+
+          $target = "build/ohos/hap/JiaAnx-$env:JIAANX_VERSION-harmonyos-arm64-unsigned.hap"
+          Copy-Item -LiteralPath $source -Destination $target -Force
+
+          $size = [math]::Round((Get-Item -LiteralPath $target).Length / 1MB, 1)
+          $hash = (Get-FileHash -Path $target -Algorithm SHA256).Hash
+          Write-Host "artifact=$target size=${size}MB sha256=$hash"
+
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### JiaAnx $env:JIAANX_VERSION · HarmonyOS arm64 · unsigned" -Encoding utf8
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- file: $target" -Encoding utf8
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- size: $size MB" -Encoding utf8
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- sha256: $hash" -Encoding utf8
+
+      - name: Upload unsigned HAP
+        uses: actions/upload-artifact@v4
+        with:
+          name: jiaanx-harmonyos-arm64-unsigned
+          path: build/ohos/hap/JiaAnx-*-harmonyos-arm64-unsigned.hap
+          if-no-files-found: error
+          retention-days: 30
