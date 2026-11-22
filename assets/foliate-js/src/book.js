@@ -317,9 +317,13 @@ const handleSelection = (view, doc, index) => {
   if (!range) return;
 
   // Linux CEF: nudge endpoints that landed one char inside a word.
+  // ArkWeb (OpenHarmony) also reports "Linux ..." as navigator.platform but has
+  // no CEF hit-testing: re-selecting the range there re-fires selectionchange
+  // and grows the selection by one character per cycle.
   const isLinuxDesktop = typeof navigator !== 'undefined'
     && /Linux/i.test(navigator.platform || '')
-    && !/Android/i.test(navigator.userAgent || '');
+    && !/Android/i.test(navigator.userAgent || '')
+    && !/OpenHarmony/i.test(navigator.userAgent || '');
   if (isLinuxDesktop) {
     range = expandRangeForCefHitTest(range);
     try {
