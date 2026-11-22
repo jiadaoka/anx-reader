@@ -24,6 +24,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 # 需要补丁的包：都是因为 TargetPlatform.ohos 而编译失败的第三方依赖。
 PACKAGES = ("flex_color_scheme", "flutter_math_fork", "mongol")
@@ -36,6 +37,21 @@ BACKUP_DIR = "build/ohos/target-platform-backup"
 
 def repo_root() -> Path:
     return Path(__file__).resolve().parent.parent
+
+
+def uri_to_path(uri: str) -> Path | None:
+    """把 package_config 里的 file:// URI 转成本机路径。
+
+    不能简单去掉 `file:///` 前缀：Linux 上 `file:///home/x` 去掉后是相对路径
+    `home/x`，Windows 上 `file:///C:/x` 去掉后才是 `C:/x`。
+    """
+    parsed = urlparse(uri)
+    if parsed.scheme not in ("", "file"):
+        return None
+    path = unquote(parsed.path)
+    if os.name == "nt" and re.match(r"^/[A-Za-z]:", path):
+        path = path[1:]
+    return Path(path)
 
 
 def load_package_dirs() -> dict[str, Path]:
@@ -51,9 +67,9 @@ def load_package_dirs() -> dict[str, Path]:
         name = package.get("name")
         if name not in wanted:
             continue
-        uri = package.get("rootUri", "")
-        if uri.startswith("file:///"):
-            found[name] = Path(uri[len("file:///"):])
+        path = uri_to_path(package.get("rootUri", ""))
+        if path is not None:
+            found[name] = path
     return found
 
 

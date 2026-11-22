@@ -1,0 +1,134 @@
+# 可复用的鸿蒙未签名 HAP 构建：tag 触发（build-unsigned.yaml）和手动重试
+# （retry-build.yaml）都调这一份，避免两处步骤各改各的。
+#
+# 跑在 GitHub 托管 ubuntu runner 上，工具链全部现装：
+# - HarmonyOS CLI 工具（hvigor / ohpm / node / SDK / NDK）来自 ErBWs/setup-ohos，
+#   它下载 ErBWs/ohos-sdk 预打包的 DevEco command-line-tools，不需要 DevEco Studio；
+# - Flutter 用 CPF-Flutter/flutter_flutter 现场克隆，分支由调用方传入（默认
+#   oh-3.41.9-release，与 docs/harmonyos.md 记的 3.41.9 线对齐）。
+#
+# 不签名：本仓库的 CI 只出未签名 HAP。版本号由 tag 换算后只写进 runner 的工作区，
+# 不回写仓库。
+name: Build HAP (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 要构建的 tag，形如 v0.1.0 或 v0.1.0-rc.1
+        required: true
+        type: string
+      flutter_ref:
+        description: CPF-Flutter/flutter_flutter 的分支或 tag
+        required: false
+        type: string
+        default: oh-3.41.9-release
+
+permissions:
+  contents: write
+
+jobs:
+  unsigned-hap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      FLUTTER_OHOS_REF: ${{ inputs.flutter_ref }}
+
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 1
+
+      # 构建工具跟着 CI 走，源码跟着 tag 走：
+      # - 老 tag 的树里没有后来才加的 scripts/ci/build_ohos_ci.sh；
+      # - 老 tag 里还可能是过时的 scripts/ohos_patch_target_platform.py。
+      # 重跑一个已有 tag 不应该要求重写 tag，所以这两个文件一律按本次 CI 所在的 ref 取。
+      # tag push 时 CI ref 就是 tag 自己，取到的内容与 tag 一致，等于没动。
+      - name: Use CI build tooling from the CI ref
+        env:
+          CI_REF: ${{ github.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          TOOLING: scripts/ci/build_ohos_ci.sh scripts/ohos_patch_target_platform.py
+        run: |
+          update_from() {
+            git fetch --depth 1 origin "$1" >/dev/null 2>&1 || return 1
+            local f
+            for f in $TOOLING; do
+              mkdir -p "$(dirname "$f")"
+              if git show "FETCH_HEAD:$f" >"${f}.tmp" 2>/dev/null; then
+                mv "${f}.tmp" "$f"
+                echo "已从 $1 取到 $f"
+              else
+                rm -f "${f}.tmp"
+              fi
+            done
+            return 0
+          }
+
+          missing() {
+            local f
+            for f in $TOOLING; do
+              [ -f "$f" ] || return 0
+            done
+            return 1
+          }
+
+          update_from "$CI_REF" || true
+          if missing && [ -n "$DEFAULT_BRANCH" ]; then
+            update_from "refs/heads/$DEFAULT_BRANCH" || true
+          fi
+          if missing; then
+            echo "::error::构建工具缺失：$TOOLING（tag ${{ inputs.tag }} 和 CI 分支都没有）"
+            exit 1
+          fi
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl xz-utils zip unzip jq libglu1-mesa cmake ninja-build g++
+
+      - name: Setup HarmonyOS CLI tools
+        uses: ErBWs/setup-ohos@v2
+        with:
+          # 这个 action 的 v2 把 version 原样当 release tag 解析，填 latest 会 404；
+          # 钉住具体版本，缓存 key 也跟着稳定。
+          version: 26.0.0.821
+          cache: true
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install Flutter OHOS SDK
+        run: |
+          git clone --branch "$FLUTTER_OHOS_REF" https://gitcode.com/CPF-Flutter/flutter_flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >>"$GITHUB_PATH"
+
+      - name: Build unsigned HAP
+        id: build
+        run: bash scripts/ci/build_ohos_ci.sh --tag "${{ inputs.tag }}" --mode release --arch arm64
+
+      - name: Upload unsigned HAP
+        uses: actions/upload-artifact@v4
+        with:
+          name: jiaanx-harmonyos-arm64-unsigned
+          path: build/ci/*.hap
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: JiaAnx ${{ inputs.tag }}
+          body: |
+            HarmonyOS arm64 未签名 HAP（release）。
+            版本：${{ steps.build.outputs.version }}（versionCode ${{ steps.build.outputs.version_code }}）
+            sha256：`${{ steps.build.outputs.sha256 }}`
+          files: build/ci/*.hap
+          fail_on_unmatched_files: true
+          prerelease: ${{ contains(inputs.tag, '-') }}
