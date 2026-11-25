@@ -2,6 +2,7 @@ import 'package:anx_reader/enums/scene_task_status.dart';
 import 'package:anx_reader/l10n/generated/L10n.dart';
 import 'package:anx_reader/page/scene_characters_page.dart';
 import 'package:anx_reader/providers/scene_characters.dart';
+import 'package:anx_reader/providers/scene_illustrations.dart';
 import 'package:anx_reader/providers/scene_tasks.dart';
 import 'package:anx_reader/widgets/scene_image/scene_task_card.dart';
 import 'package:flutter/material.dart';
@@ -29,6 +30,7 @@ class _SceneTaskListState extends ConsumerState<SceneTaskList> {
     super.initState();
     final store = ref.read(sceneTaskStoreProvider);
     store.ensureLoaded();
+    SceneIllustrationStore.instance.ensureLoaded();
     store.markBookRead(widget.bookId);
   }
 
@@ -45,7 +47,10 @@ class _SceneTaskListState extends ConsumerState<SceneTaskList> {
         const SizedBox(height: 10),
         Expanded(
           child: ListenableBuilder(
-            listenable: store,
+            listenable: Listenable.merge([
+              store,
+              SceneIllustrationStore.instance,
+            ]),
             builder: (context, _) {
               final tasks = store.tasksForBook(widget.bookId);
               if (tasks.isEmpty) {

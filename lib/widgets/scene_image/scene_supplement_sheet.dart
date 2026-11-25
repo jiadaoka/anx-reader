@@ -18,6 +18,10 @@ Future<void> showSceneSupplementSheet({
   required double progress,
   String? contextBefore,
   String? contextAfter,
+  String? sectionHref,
+  int sectionIndex = -1,
+  int paragraphIndex = -1,
+  String? paragraphText,
 }) async {
   final l10n = L10n.of(context);
   final supplement = await showModalBottomSheet<String>(
@@ -56,6 +60,10 @@ Future<void> showSceneSupplementSheet({
     supplement: supplement,
     contextBefore: contextBefore ?? '',
     contextAfter: contextAfter ?? '',
+    sourceSectionHref: sectionHref ?? '',
+    sourceSectionIndex: sectionIndex,
+    sourceParagraphIndex: paragraphIndex,
+    sourceParagraphText: paragraphText ?? '',
   );
 
   final toastContext = navigatorKey.currentContext;

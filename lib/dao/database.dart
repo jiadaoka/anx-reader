@@ -13,7 +13,7 @@ import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 // Current app database version
-const int currentDbVersion = 8;
+const int currentDbVersion = 9;
 
 const createBookSQL = '''
 CREATE TABLE tb_books (
@@ -167,6 +167,28 @@ CREATE TABLE tb_scene_workflows (
   landscape_height INTEGER,
   orientation TEXT,
   is_active INTEGER DEFAULT 0,
+  create_time TEXT,
+  update_time TEXT
+)
+''';
+
+/// 正文插图：一个来源段落一条，替换只改指向。
+const createSceneIllustrationSQL = '''
+CREATE TABLE tb_scene_illustrations (
+  id TEXT PRIMARY KEY,
+  book_id INTEGER,
+  section_href TEXT,
+  section_index INTEGER,
+  paragraph_index INTEGER,
+  paragraph_text TEXT,
+  excerpt TEXT,
+  task_id TEXT,
+  entry_id TEXT,
+  image_path TEXT,
+  width INTEGER,
+  height INTEGER,
+  insert_mode TEXT,
+  anchor_status TEXT,
   create_time TEXT,
   update_time TEXT
 )
@@ -509,6 +531,19 @@ class DBHelper {
         await db.execute(createSceneCharacterSQL);
         await db.execute(createSceneCharacterFragmentSQL);
         await db.execute(createSceneWorkflowSQL);
+        continue case8;
+      case8:
+      case 8:
+        // 正文插图：来源段锚点（存到任务上）+ 插图记录表
+        await db.execute(
+            'ALTER TABLE tb_scene_tasks ADD COLUMN source_section_href TEXT');
+        await db.execute(
+            'ALTER TABLE tb_scene_tasks ADD COLUMN source_section_index INTEGER');
+        await db.execute(
+            'ALTER TABLE tb_scene_tasks ADD COLUMN source_paragraph_index INTEGER');
+        await db.execute(
+            'ALTER TABLE tb_scene_tasks ADD COLUMN source_paragraph_text TEXT');
+        await db.execute(createSceneIllustrationSQL);
     }
 
     if (oldVersion != 0 && Prefs().webdavStatus) {

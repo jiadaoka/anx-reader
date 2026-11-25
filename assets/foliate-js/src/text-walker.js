@@ -20,6 +20,9 @@ const filter = NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT
 
 const acceptNode = node => {
     if (node.nodeType === 1) {
+        // Reader-injected decorations never belong to the book text.
+        if (node.hasAttribute('data-anx-ignore')) return NodeFilter.FILTER_REJECT
+
         const name = node.tagName.toLowerCase()
         if (name === 'script' || name === 'style') return NodeFilter.FILTER_REJECT
         

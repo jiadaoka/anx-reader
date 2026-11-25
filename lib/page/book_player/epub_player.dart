@@ -7,6 +7,8 @@ import 'package:anx_reader/dao/book.dart';
 import 'package:anx_reader/dao/book_note.dart';
 import 'package:anx_reader/enums/page_turn_mode.dart';
 import 'package:anx_reader/enums/reading_info.dart';
+import 'package:anx_reader/enums/scene_illustration.dart';
+import 'package:anx_reader/enums/scene_task_status.dart';
 import 'package:anx_reader/enums/translation_mode.dart';
 import 'package:anx_reader/enums/writing_mode.dart';
 import 'package:anx_reader/l10n/generated/L10n.dart';
@@ -17,6 +19,8 @@ import 'package:anx_reader/models/bookmark.dart';
 import 'package:anx_reader/models/font_model.dart';
 import 'package:anx_reader/models/read_theme.dart';
 import 'package:anx_reader/models/reading_rules.dart';
+import 'package:anx_reader/models/scene_illustration.dart';
+import 'package:anx_reader/models/scene_task.dart';
 import 'package:anx_reader/models/search_result_model.dart';
 import 'package:anx_reader/models/toc_item.dart';
 import 'package:anx_reader/page/book_player/image_viewer.dart';
@@ -27,16 +31,23 @@ import 'package:anx_reader/providers/book_toc.dart';
 import 'package:anx_reader/providers/bookmark.dart';
 import 'package:anx_reader/providers/chapter_content_bridge.dart';
 import 'package:anx_reader/providers/current_reading.dart';
+import 'package:anx_reader/providers/scene_illustrations.dart';
 import 'package:anx_reader/service/book_player/book_player_server.dart';
 import 'package:anx_reader/providers/toc_search.dart';
+import 'package:anx_reader/service/scene_image/image_store.dart';
 import 'package:anx_reader/service/tts/base_tts.dart';
 import 'package:anx_reader/service/tts/models/tts_sentence.dart';
 import 'package:anx_reader/service/tts/tts_handler.dart';
 import 'package:anx_reader/utils/coordinates_to_part.dart';
+import 'package:anx_reader/utils/get_path/get_temp_dir.dart';
 import 'package:anx_reader/utils/js/convert_dart_color_to_js.dart';
 import 'package:anx_reader/utils/platform_utils.dart';
 import 'package:anx_reader/models/book_note.dart';
 import 'package:anx_reader/utils/log/common.dart';
+import 'package:anx_reader/utils/save_image_to_path.dart';
+import 'package:anx_reader/utils/save_img.dart';
+import 'package:anx_reader/utils/share_file.dart';
+import 'package:anx_reader/utils/toast/common.dart';
 import 'package:anx_reader/utils/webView/epub_webview.dart';
 import 'package:anx_reader/utils/webView/epub_webview_controller.dart';
 import 'package:anx_reader/utils/webView/gererate_url.dart';
@@ -46,6 +57,7 @@ import 'package:anx_reader/widgets/context_menu/context_menu.dart';
 import 'package:anx_reader/widgets/reading_page/more_settings/page_turning/diagram.dart';
 import 'package:anx_reader/widgets/reading_page/more_settings/page_turning/types_and_icons.dart';
 import 'package:anx_reader/widgets/reading_page/style_widget.dart';
+import 'package:anx_reader/widgets/scene_image/illustration_action_sheet.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -107,6 +119,17 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
   /// 划中段前后各一段正文，供剧情配图取上下文；没有就是 null。
   String? selectionContextBefore;
   String? selectionContextAfter;
+
+  /// 划中段起点所在段落的锚点，供正文插图落位。
+  String selectionSectionHref = '';
+  int selectionSectionIndex = -1;
+  int selectionParagraphIndex = -1;
+  String selectionParagraphText = '';
+
+  bool _readerReady = false;
+  bool _syncingIllustrations = false;
+  bool _illustrationSyncPending = false;
+  bool _sceneImageEnabledCache = true;
   bool _selectionClearLocked = false;
   bool _selectionClearPending = false;
 
@@ -665,9 +688,44 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
   Future<void> setHandler(EpubWebViewController controller) async {
     controller.addJavaScriptHandler(
         handlerName: 'onLoadEnd',
-        callback: (args) {
+        callback: (args) async {
+          _readerReady = true;
           widget.onLoadEnd();
+          await syncIllustrations();
         });
+
+    controller.addJavaScriptHandler(
+      handlerName: 'onIllustrationTap',
+      callback: (args) {
+        final id = _illustrationIdFrom(args);
+        if (id == null) return;
+        unawaited(_openIllustrationViewer(id));
+      },
+    );
+
+    controller.addJavaScriptHandler(
+      handlerName: 'onIllustrationLongPress',
+      callback: (args) {
+        final id = _illustrationIdFrom(args);
+        if (id == null) return;
+        unawaited(_showIllustrationActions(id));
+      },
+    );
+
+    controller.addJavaScriptHandler(
+      handlerName: 'onIllustrationAnchorInvalid',
+      callback: (args) {
+        final payload = args.isNotEmpty ? args.first : null;
+        final rawIds = payload is Map ? payload['ids'] : null;
+        if (rawIds is! List) return;
+        final ids = rawIds
+            .map<String>((e) => e?.toString() ?? '')
+            .where((e) => e.isNotEmpty)
+            .toList(growable: false);
+        if (ids.isEmpty) return;
+        unawaited(SceneIllustrationStore.instance.markInvalid(ids));
+      },
+    );
 
     controller.addJavaScriptHandler(
         handlerName: 'onRelocated',
@@ -735,6 +793,13 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
               (rawContextText?.trim().isEmpty ?? true) ? null : rawContextText;
           selectionContextBefore = _readParagraph(location['contextBefore']);
           selectionContextAfter = _readParagraph(location['contextAfter']);
+          selectionSectionIndex =
+              (location['sectionIndex'] as num?)?.toInt() ?? -1;
+          selectionSectionHref = location['sectionHref']?.toString() ?? '';
+          selectionParagraphIndex =
+              (location['paragraphIndex'] as num?)?.toInt() ?? -1;
+          selectionParagraphText =
+              location['paragraphText']?.toString().trim() ?? '';
           double left = (location['pos']['left'] as num).toDouble();
           double top = (location['pos']['top'] as num).toDouble();
           double right = (location['pos']['right'] as num).toDouble();
@@ -763,6 +828,10 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
           _lastSelectionContextText = null;
           selectionContextBefore = null;
           selectionContextAfter = null;
+          selectionSectionHref = '';
+          selectionSectionIndex = -1;
+          selectionParagraphIndex = -1;
+          selectionParagraphText = '';
           removeOverlay();
           restoreReaderFocus();
         });
@@ -793,6 +862,10 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
               (rawContextText?.trim().isEmpty ?? true) ? null : rawContextText;
           selectionContextBefore = null;
           selectionContextAfter = null;
+          selectionSectionHref = '';
+          selectionSectionIndex = -1;
+          selectionParagraphIndex = -1;
+          selectionParagraphText = '';
           double left = (annotation['pos']['left'] as num).toDouble();
           double top = (annotation['pos']['top'] as num).toDouble();
           double right = (annotation['pos']['right'] as num).toDouble();
@@ -925,6 +998,166 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
     );
   }
 
+  String? _illustrationIdFrom(List<dynamic> args) {
+    final payload = args.isNotEmpty ? args.first : null;
+    final id = payload is Map ? payload['id']?.toString() : null;
+    return (id == null || id.isEmpty) ? null : id;
+  }
+
+  /// 把本书的插图集推给阅读器 JS；总开关关闭时推空表。
+  Future<void> syncIllustrations() async {
+    if (!mounted || !_readerReady) return;
+    if (_syncingIllustrations) {
+      _illustrationSyncPending = true;
+      return;
+    }
+    _syncingIllustrations = true;
+    try {
+      await SceneIllustrationStore.instance.ensureLoaded();
+      if (!mounted) return;
+      final l10n = L10n.of(context);
+      final payload = SceneIllustrationStore.instance.buildPayloadForBook(
+        bookId: widget.book.id,
+        enabled: Prefs().sceneImageEnabled,
+        loadingText: l10n.sceneIllustrationLoading,
+        unavailableText: l10n.sceneIllustrationUnavailable,
+      );
+      final json = jsonEncode(payload);
+      final jsLiteral = jsonEncode(json)
+          .replaceAll('\u2028', r'\u2028')
+          .replaceAll('\u2029', r'\u2029');
+      await webViewController.execute(
+        'window.__anxSetIllustrations($jsLiteral)',
+      );
+    } catch (e) {
+      AnxLog.warning('SceneImage: sync illustrations failed: $e');
+    } finally {
+      _syncingIllustrations = false;
+      if (_illustrationSyncPending) {
+        _illustrationSyncPending = false;
+        unawaited(syncIllustrations());
+      }
+    }
+  }
+
+  /// 任务卡「插入正文 / 已在正文中」：改记录指向后让阅读器重排。
+  Future<void> insertIllustration(
+    SceneTask task,
+    SceneTaskHistoryEntry entry,
+  ) async {
+    if (!mounted) return;
+    final l10n = L10n.of(context);
+    if (!Prefs().sceneImageEnabled) {
+      AnxToast.show(l10n.sceneIllustrationSwitchedOff);
+      return;
+    }
+    if (task.sourceSectionHref.isEmpty || task.sourceParagraphText.isEmpty) {
+      AnxToast.show(l10n.sceneIllustrationNoAnchor);
+      return;
+    }
+    if (entry.imagePath.isEmpty || entry.status != SceneTaskStatus.completed) {
+      AnxToast.show(l10n.sceneIllustrationNoImage);
+      return;
+    }
+    final inserted = await SceneIllustrationStore.instance.insertFromTask(
+      task: task,
+      entry: entry,
+      mode: SceneIllustrationMode.manual,
+    );
+    if (inserted == null) {
+      if (mounted) AnxToast.show(l10n.sceneIllustrationNoImage);
+      return;
+    }
+    await syncIllustrations();
+    if (!mounted) return;
+    AnxToast.show(l10n.sceneIllustrationInsertedToast);
+  }
+
+  void _onIllustrationStoreChanged() {
+    unawaited(syncIllustrations());
+  }
+
+  void _onScenePrefsChanged() {
+    final enabled = Prefs().sceneImageEnabled;
+    if (enabled == _sceneImageEnabledCache) return;
+    _sceneImageEnabledCache = enabled;
+    unawaited(syncIllustrations());
+  }
+
+  Future<void> _openIllustrationViewer(String id) async {
+    final record = SceneIllustrationStore.instance.byId(id);
+    if (record == null) return;
+    final dataUrl = await sceneImageDataUrl(record.imagePath);
+    if (!mounted) return;
+    if (dataUrl == null) {
+      AnxToast.show(L10n.of(context).sceneIllustrationUnavailable);
+      return;
+    }
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ImageViewer(
+          image: dataUrl,
+          bookName: widget.book.title,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showIllustrationActions(String id) async {
+    final record = SceneIllustrationStore.instance.byId(id);
+    if (record == null || !mounted) return;
+    final action = await showSceneIllustrationActionSheet(context);
+    if (!mounted || action == null) return;
+    switch (action) {
+      case SceneIllustrationAction.save:
+        await _saveIllustration(record);
+        break;
+      case SceneIllustrationAction.share:
+        await _shareIllustration(record);
+        break;
+      case SceneIllustrationAction.remove:
+        await SceneIllustrationStore.instance.remove(record.id);
+        if (!mounted) return;
+        AnxToast.show(L10n.of(context).sceneIllustrationRemovedToast);
+        break;
+    }
+  }
+
+  Future<void> _saveIllustration(SceneIllustration record) async {
+    final dataUrl = await sceneImageDataUrl(record.imagePath);
+    if (!mounted) return;
+    if (dataUrl == null) {
+      AnxToast.show(L10n.of(context).sceneIllustrationUnavailable);
+      return;
+    }
+    try {
+      final parts = dataUrl.split(',');
+      final bytes = base64Decode(parts[1]);
+      final extension = parts[0].split('/')[1].split(';')[0];
+      await SaveImg.downloadImg(bytes, extension, widget.book.title);
+    } catch (e) {
+      AnxLog.warning('SceneImage: save illustration failed: $e');
+    }
+  }
+
+  Future<void> _shareIllustration(SceneIllustration record) async {
+    final dataUrl = await sceneImageDataUrl(record.imagePath);
+    if (!mounted) return;
+    if (dataUrl == null) {
+      AnxToast.show(L10n.of(context).sceneIllustrationUnavailable);
+      return;
+    }
+    final tempDir = await getAnxTempDir();
+    final path = await saveB64ImageToPath(
+      dataUrl,
+      tempDir.path,
+      'JiaAnx_${widget.book.title}',
+    );
+    if (path.isEmpty) return;
+    await shareFile(filePath: path);
+  }
+
   Future<void> onWebViewCreated(EpubWebViewController controller) async {
     if (AnxPlatform.isAndroid) {
       await InAppWebViewController.setWebContentsDebuggingEnabled(true);
@@ -997,6 +1230,10 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
         _animationController!.forward();
       });
     }
+    _sceneImageEnabledCache = Prefs().sceneImageEnabled;
+    SceneIllustrationStore.instance.addListener(_onIllustrationStoreChanged);
+    Prefs().addListener(_onScenePrefsChanged);
+    unawaited(SceneIllustrationStore.instance.ensureLoaded());
     super.initState();
   }
 
@@ -1020,6 +1257,8 @@ class EpubPlayerState extends ConsumerState<EpubPlayer>
   void dispose() {
     _scrollDebounceTimer?.cancel();
     _animationController?.dispose();
+    SceneIllustrationStore.instance.removeListener(_onIllustrationStoreChanged);
+    Prefs().removeListener(_onScenePrefsChanged);
     saveReadingProgress();
     removeOverlay();
     super.dispose();

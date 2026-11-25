@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:anx_reader/config/shared_preference_provider.dart';
+import 'package:anx_reader/service/scene_image/image_store.dart';
 import 'package:anx_reader/utils/get_path/get_base_path.dart';
 import 'package:anx_reader/utils/log/common.dart';
 import 'package:flutter/services.dart';
@@ -146,6 +147,8 @@ class Server {
           'Content-Type': contentType,
         },
       );
+    } else if (uriPath.startsWith('/illustration/')) {
+      return _handleIllustrationRequest(uriPath);
     } else if (uriPath.startsWith('/bgimg/')) {
       return await _handleBgimgRequest(request);
     } else {
@@ -170,6 +173,35 @@ class Server {
       'Access-Control-Allow-Origin': '*',
     };
     return shelf.Response.ok(file.openRead(), headers: headers);
+  }
+
+  /// 正文插图：只服务应用私有目录下 scene_image/ 里的文件。
+  shelf.Response _handleIllustrationRequest(String uriPath) {
+    final relative = Uri.decodeComponent(
+      uriPath.substring('/illustration/'.length),
+    );
+    if (!relative.startsWith('$sceneImageDir/') || relative.contains('..')) {
+      return shelf.Response.notFound('Illustration not found');
+    }
+    final file = File(getBasePath(relative));
+    if (!file.existsSync()) {
+      return shelf.Response.notFound('Illustration not found');
+    }
+    final extension = path.extension(relative).toLowerCase();
+    final contentType = switch (extension) {
+      '.jpg' || '.jpeg' => 'image/jpeg',
+      '.webp' => 'image/webp',
+      '.gif' => 'image/gif',
+      _ => 'image/png',
+    };
+    return shelf.Response.ok(
+      file.openRead(),
+      headers: {
+        'Content-Type': contentType,
+        'Access-Control-Allow-Origin': '*',
+        'cache-control': 'public, max-age=31536000',
+      },
+    );
   }
 
   Future<shelf.Response> _handleBgimgRequest(shelf.Request request) async {

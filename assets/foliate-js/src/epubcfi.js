@@ -188,10 +188,17 @@ export const compare = (a, b) => {
 const isTextNode = ({ nodeType }) => nodeType === 3 || nodeType === 4
 const isElementNode = ({ nodeType }) => nodeType === 1
 
+// Reader-injected decorations (scene illustrations) exist only in the rendered
+// document, not in the parsed book document. They must be invisible to CFI
+// indices in both directions, otherwise inserting/removing one shifts every
+// bookmark, note, search hit and saved position after it.
+const isIgnoredNode = node =>
+    isElementNode(node) && node.hasAttribute?.('data-anx-ignore')
+
 const getChildNodes = (node, filter) => {
     const nodes = Array.from(node.childNodes)
         // "content other than element and character data is ignored"
-        .filter(node => isTextNode(node) || isElementNode(node))
+        .filter(node => (isTextNode(node) || isElementNode(node)) && !isIgnoredNode(node))
     return filter ? nodes.map(node => {
         const accept = filter(node)
         if (accept === NodeFilter.FILTER_REJECT) return null
@@ -231,6 +238,18 @@ const indexChildNodes = (node, filter) => {
     return nodes
 }
 
+const firstMeaningfulChild = node => {
+    for (const child of node.childNodes)
+        if (!isIgnoredNode(child)) return child
+    return node
+}
+
+const lastMeaningfulChild = node => {
+    for (let i = node.childNodes.length - 1; i >= 0; i--)
+        if (!isIgnoredNode(node.childNodes[i])) return node.childNodes[i]
+    return node
+}
+
 const partsToNode = (node, parts, filter) => {
     const { id } = parts[parts.length - 1]
     if (id) {
@@ -240,8 +259,8 @@ const partsToNode = (node, parts, filter) => {
     for (const { index } of parts) {
         const newNode = node ? indexChildNodes(node, filter)[index] : null
         // handle non-existent nodes
-        if (newNode === 'first') return { node: node.firstChild ?? node }
-        if (newNode === 'last') return { node: node.lastChild ?? node }
+        if (newNode === 'first') return { node: firstMeaningfulChild(node) }
+        if (newNode === 'last') return { node: lastMeaningfulChild(node) }
         if (newNode === 'before') return { node, before: true }
         if (newNode === 'after') return { node, after: true }
         node = newNode

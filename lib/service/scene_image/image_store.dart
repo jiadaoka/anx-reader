@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:anx_reader/utils/get_path/get_base_path.dart';
 import 'package:path/path.dart' as p;
@@ -38,6 +39,26 @@ Future<String?> sceneImageDataUrl(String relative) async {
   final bytes = await file.readAsBytes();
   final mimeType = _mimeFor(p.extension(relative).toLowerCase());
   return 'data:$mimeType;base64,${base64Encode(bytes)}';
+}
+
+/// 图片文件的真实像素，用作正文插图的加载前占位；读不出返回 null。
+///
+/// 工作流不一定写 `%width%/%height%`，任务凭据里的画幅可能和实际文件不一致，
+/// 所以插图的占位尺寸以文件为准。
+Future<({int width, int height})?> sceneImagePixelSize(String relative) async {
+  final file = await sceneImageFile(relative);
+  if (file == null) return null;
+  try {
+    final bytes = await file.readAsBytes();
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    final size = (width: frame.image.width, height: frame.image.height);
+    frame.image.dispose();
+    codec.dispose();
+    return size;
+  } catch (_) {
+    return null;
+  }
 }
 
 Future<void> deleteSceneImage(String relative) async {

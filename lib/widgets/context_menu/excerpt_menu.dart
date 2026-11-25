@@ -371,6 +371,10 @@ class ExcerptMenuState extends State<ExcerptMenu> {
                 final progress = playerState.percentage;
                 final contextBefore = playerState.selectionContextBefore;
                 final contextAfter = playerState.selectionContextAfter;
+                final sectionHref = playerState.selectionSectionHref;
+                final sectionIndex = playerState.selectionSectionIndex;
+                final paragraphIndex = playerState.selectionParagraphIndex;
+                final paragraphText = playerState.selectionParagraphText;
                 widget.onClose();
                 final navigatorContext = navigatorKey.currentContext;
                 if (navigatorContext == null) return;
@@ -384,6 +388,10 @@ class ExcerptMenuState extends State<ExcerptMenu> {
                   progress: progress,
                   contextBefore: contextBefore,
                   contextAfter: contextAfter,
+                  sectionHref: sectionHref,
+                  sectionIndex: sectionIndex,
+                  paragraphIndex: paragraphIndex,
+                  paragraphText: paragraphText,
                 );
                 playerState.restoreReaderFocus();
               },

@@ -1795,6 +1795,15 @@ class Prefs extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 生图成功后自动把结果插到来源段落之后；默认开。
+  bool get sceneAutoInsertEnabled =>
+      prefs.getBool('sceneAutoInsertEnabled') ?? true;
+
+  set sceneAutoInsertEnabled(bool value) {
+    prefs.setBool('sceneAutoInsertEnabled', value);
+    notifyListeners();
+  }
+
   /// 未测试 / 正常 / 失败；由「测试连接」写入，不是实时状态。
   String get sceneComfyStatus =>
       prefs.getString('sceneComfyStatus') ?? sceneComfyStatusUntested;

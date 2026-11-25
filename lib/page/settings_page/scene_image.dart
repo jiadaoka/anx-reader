@@ -169,11 +169,14 @@ class _SceneImageSettingsState extends ConsumerState<SceneImageSettings> {
       SettingsSection(
         title: Text(l10n.sceneImageDataSection),
         tiles: [
-          SettingsTile(
-            title: Text(l10n.sceneImageInlineBody),
-            description: Text(l10n.sceneImageInlineBodyHint),
-            trailing: Text(l10n.sceneImageNotSupported),
-            enabled: false,
+          SettingsTile.switchTile(
+            initialValue: Prefs().sceneAutoInsertEnabled,
+            onToggle: (value) {
+              Prefs().sceneAutoInsertEnabled = value;
+              setState(() {});
+            },
+            title: Text(l10n.sceneImageAutoInsert),
+            description: Text(l10n.sceneImageAutoInsertHint),
           ),
           SettingsTile(
             title: Text(l10n.sceneImageImageLocation),

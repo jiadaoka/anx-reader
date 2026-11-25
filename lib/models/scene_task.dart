@@ -134,6 +134,13 @@ class SceneTask {
   String contextAfter;
   bool contextComplete;
 
+  /// 来源段落锚点：划中段起点所在段落。正文插图按它落位；
+  /// 空值表示没有段信息，不参与插入（旧任务）。
+  String sourceSectionHref;
+  int sourceSectionIndex;
+  int sourceParagraphIndex;
+  String sourceParagraphText;
+
   /// 提示词引擎给出的画幅方向（portrait / landscape）；空表示没拿到。
   String sizeHint;
 
@@ -174,6 +181,10 @@ class SceneTask {
     this.contextBefore = '',
     this.contextAfter = '',
     this.contextComplete = true,
+    this.sourceSectionHref = '',
+    this.sourceSectionIndex = -1,
+    this.sourceParagraphIndex = -1,
+    this.sourceParagraphText = '',
     this.sizeHint = '',
     this.promptTaskId,
     this.workflowId,
@@ -222,6 +233,10 @@ class SceneTask {
         'context_before': contextBefore,
         'context_after': contextAfter,
         'context_complete': contextComplete ? 1 : 0,
+        'source_section_href': sourceSectionHref,
+        'source_section_index': sourceSectionIndex,
+        'source_paragraph_index': sourceParagraphIndex,
+        'source_paragraph_text': sourceParagraphText,
         'size_hint': sizeHint,
         'prompt_task_id': promptTaskId,
         'workflow_id': workflowId,
@@ -261,6 +276,11 @@ class SceneTask {
       contextBefore: row['context_before'] as String? ?? '',
       contextAfter: row['context_after'] as String? ?? '',
       contextComplete: (row['context_complete'] as int? ?? 1) == 1,
+      sourceSectionHref: row['source_section_href'] as String? ?? '',
+      sourceSectionIndex: (row['source_section_index'] as num?)?.toInt() ?? -1,
+      sourceParagraphIndex:
+          (row['source_paragraph_index'] as num?)?.toInt() ?? -1,
+      sourceParagraphText: row['source_paragraph_text'] as String? ?? '',
       sizeHint: row['size_hint'] as String? ?? '',
       promptTaskId: row['prompt_task_id'] as String?,
       workflowId: (row['workflow_id'] as num?)?.toInt(),

@@ -4,9 +4,11 @@ import 'dart:math';
 import 'package:anx_reader/config/shared_preference_provider.dart';
 import 'package:anx_reader/dao/scene_task.dart';
 import 'package:anx_reader/dao/scene_workflow.dart';
+import 'package:anx_reader/enums/scene_illustration.dart';
 import 'package:anx_reader/enums/scene_task_status.dart';
 import 'package:anx_reader/enums/scene_task_type.dart';
 import 'package:anx_reader/models/scene_task.dart';
+import 'package:anx_reader/providers/scene_illustrations.dart';
 import 'package:anx_reader/service/scene_image/character_resolver.dart';
 import 'package:anx_reader/service/scene_image/comfyui_client.dart';
 import 'package:anx_reader/service/scene_image/image_store.dart';
@@ -99,6 +101,10 @@ class SceneTaskStore extends ChangeNotifier {
     required String supplement,
     required String contextBefore,
     required String contextAfter,
+    required String sourceSectionHref,
+    required int sourceSectionIndex,
+    required int sourceParagraphIndex,
+    required String sourceParagraphText,
   }) async {
     await ensureLoaded();
 
@@ -123,6 +129,10 @@ class SceneTaskStore extends ChangeNotifier {
       contextBefore: context.before,
       contextAfter: context.after,
       contextComplete: contextComplete,
+      sourceSectionHref: sourceSectionHref,
+      sourceSectionIndex: sourceSectionIndex,
+      sourceParagraphIndex: sourceParagraphIndex,
+      sourceParagraphText: sourceParagraphText,
     );
 
     _tasks[task.id] = task;
@@ -218,6 +228,10 @@ class SceneTaskStore extends ChangeNotifier {
         contextBefore: promptTask.contextBefore,
         contextAfter: promptTask.contextAfter,
         contextComplete: promptTask.contextComplete,
+        sourceSectionHref: promptTask.sourceSectionHref,
+        sourceSectionIndex: promptTask.sourceSectionIndex,
+        sourceParagraphIndex: promptTask.sourceParagraphIndex,
+        sourceParagraphText: promptTask.sourceParagraphText,
         sizeHint: promptTask.sizeHint,
         promptTaskId: promptTask.id,
         characterRefs: List<SceneTaskCharacterRef>.from(
@@ -453,7 +467,7 @@ class SceneTaskStore extends ChangeNotifier {
       task.status = SceneTaskStatus.completed;
       task.failureReason = '';
       task.queueAhead = null;
-      task.addHistory(SceneTaskHistoryEntry(
+      final entry = SceneTaskHistoryEntry(
         id: newSceneTaskId(),
         status: SceneTaskStatus.completed,
         prompt: task.prompt,
@@ -464,8 +478,10 @@ class SceneTaskStore extends ChangeNotifier {
         seed: seed,
         workflowName: snapshot.name,
         createTime: DateTime.now(),
-      ));
+      );
+      task.addHistory(entry);
       Prefs().setSceneTaskUnread(task.bookId, true);
+      await _autoInsertIllustration(task, entry);
       _taskCompletedController.add(task);
     } on SceneImageFailure catch (e) {
       if (task.status != SceneTaskStatus.cancelled) {
@@ -515,6 +531,26 @@ class SceneTaskStore extends ChangeNotifier {
         return '图片保存失败：${failure.detail}';
       case SceneImageFailureCode.unknown:
         return '出图失败：${failure.detail}';
+    }
+  }
+
+  /// 生图成功时按来源段落到正文；只处理这一次成功，不扫描历史任务。
+  Future<void> _autoInsertIllustration(
+    SceneTask task,
+    SceneTaskHistoryEntry entry,
+  ) async {
+    if (!Prefs().sceneImageEnabled || !Prefs().sceneAutoInsertEnabled) return;
+    if (task.sourceSectionHref.isEmpty || task.sourceParagraphText.isEmpty) {
+      return;
+    }
+    try {
+      await SceneIllustrationStore.instance.insertFromTask(
+        task: task,
+        entry: entry,
+        mode: SceneIllustrationMode.auto,
+      );
+    } catch (e) {
+      AnxLog.warning('SceneImage: auto insert illustration failed: $e');
     }
   }
 

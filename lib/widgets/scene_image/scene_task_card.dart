@@ -3,8 +3,11 @@ import 'dart:io';
 import 'package:anx_reader/config/shared_preference_provider.dart';
 import 'package:anx_reader/enums/scene_task_status.dart';
 import 'package:anx_reader/l10n/generated/L10n.dart';
+import 'package:anx_reader/models/scene_illustration.dart';
 import 'package:anx_reader/models/scene_task.dart';
 import 'package:anx_reader/page/book_player/image_viewer.dart';
+import 'package:anx_reader/page/reading_page.dart';
+import 'package:anx_reader/providers/scene_illustrations.dart';
 import 'package:anx_reader/providers/scene_tasks.dart';
 import 'package:anx_reader/providers/scene_workflows.dart';
 import 'package:anx_reader/service/scene_image/image_store.dart';
@@ -27,6 +30,22 @@ class _SceneTaskCardState extends ConsumerState<SceneTaskCard> {
   int _historyIndex = 0;
 
   SceneTask get _task => widget.task;
+
+  @override
+  void initState() {
+    super.initState();
+    SceneIllustrationStore.instance.addListener(_onIllustrationsChanged);
+  }
+
+  @override
+  void dispose() {
+    SceneIllustrationStore.instance.removeListener(_onIllustrationsChanged);
+    super.dispose();
+  }
+
+  void _onIllustrationsChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +78,20 @@ class _SceneTaskCardState extends ConsumerState<SceneTaskCard> {
         _task.prompt.trim().isNotEmpty &&
         Prefs().sceneComfyServer.trim().isNotEmpty &&
         activeWorkflow != null;
+
+    final illustrationStore = ref.read(sceneIllustrationStoreProvider);
+    final illustration = illustrationStore.forTaskAnchor(_task);
+    final hasSourceAnchor = _task.sourceSectionHref.isNotEmpty &&
+        _task.sourceParagraphText.isNotEmpty;
+    final showingThisEntry = illustrationStore.isShowing(_task, entry);
+    final insertDisabledReason = _insertDisabledReason(
+      l10n,
+      entry,
+      illustration,
+      hasSourceAnchor,
+    );
+    final canInsertIntoBody =
+        !showingThisEntry && insertDisabledReason == null;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -323,6 +356,35 @@ class _SceneTaskCardState extends ConsumerState<SceneTaskCard> {
               ],
             ),
           ),
+          if (_task.isImageTask)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 8, 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: canInsertIntoBody
+                        ? () => _insertIntoBody(entry)
+                        : null,
+                    child: Text(
+                      showingThisEntry
+                          ? l10n.sceneIllustrationInserted
+                          : l10n.sceneIllustrationInsert,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (_task.isImageTask && insertDisabledReason != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: Text(
+                insertDisabledReason,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -347,6 +409,45 @@ class _SceneTaskCardState extends ConsumerState<SceneTaskCard> {
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) => placeholder,
     );
+  }
+
+  String? _insertDisabledReason(
+    L10n l10n,
+    SceneTaskHistoryEntry? entry,
+    SceneIllustration? record,
+    bool hasSourceAnchor,
+  ) {
+    if (!_task.isImageTask) return null;
+    if (!Prefs().sceneImageEnabled) return l10n.sceneIllustrationSwitchedOff;
+    if (!hasSourceAnchor) return l10n.sceneIllustrationNoAnchor;
+    if (entry == null ||
+        entry.status != SceneTaskStatus.completed ||
+        entry.imagePath.isEmpty) {
+      return l10n.sceneIllustrationNoImage;
+    }
+    if (record != null && !record.isValid) {
+      return l10n.sceneIllustrationInvalidCannotInsert;
+    }
+    return null;
+  }
+
+  String _illustrationStatusText(L10n l10n) {
+    final record = SceneIllustrationStore.instance.forTaskAnchor(_task);
+    if (record == null) return l10n.sceneIllustrationNotInserted;
+    if (!record.isValid) return l10n.sceneIllustrationAnchorInvalid;
+    if (record.taskId != _task.id) {
+      return l10n.sceneIllustrationNotInserted;
+    }
+    final results = _task.imageResults;
+    final version = results.indexWhere((e) => e.id == record.entryId);
+    return l10n.sceneIllustrationInBody(version < 0 ? 1 : version + 1);
+  }
+
+  Future<void> _insertIntoBody(SceneTaskHistoryEntry? entry) async {
+    if (entry == null) return;
+    final player = epubPlayerKey.currentState;
+    if (player == null) return;
+    await player.insertIllustration(_task, entry);
   }
 
   Widget _credentials(
@@ -384,7 +485,13 @@ class _SceneTaskCardState extends ConsumerState<SceneTaskCard> {
               ),
             if (seed != null) _kv(l10n.sceneTaskSeedLabel, '$seed'),
           ],
-          _kv(l10n.sceneTaskSourceLabel, sceneTaskSourceText(context, _task)),
+          _kv(
+            l10n.sceneTaskSourceLabel,
+            _task.isImageTask
+                ? '${sceneTaskSourceText(context, _task)} · '
+                    '${_illustrationStatusText(l10n)}'
+                : sceneTaskSourceText(context, _task),
+          ),
           _kv(l10n.sceneTaskTimeLabel, sceneTaskDateTime(time)),
           const SizedBox(height: 4),
           Text(

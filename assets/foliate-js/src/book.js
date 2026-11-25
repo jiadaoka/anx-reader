@@ -310,6 +310,143 @@ const buildParagraphContext = (range) => {
   };
 };
 
+const ILLUSTRATION_ATTR = 'data-anx-illustration-id';
+const ILLUSTRATION_IGNORE_ATTR = 'data-anx-ignore';
+const ILLUSTRATION_LONG_PRESS_MS = 500;
+
+let sceneIllustrations = [];
+const sceneIllustrationText = { loading: '插画加载中', unavailable: '图片不可用' };
+
+/** Paragraph text used to verify an illustration anchor; decoration text is ignored. */
+const illustrationAnchorText = (element) => {
+  if (!element) return '';
+  const clone = element.cloneNode(true);
+  for (const node of clone.querySelectorAll('.translated-text, [data-anx-ignore]')) {
+    node.remove();
+  }
+  return _collapseWhitespace(clone.textContent).slice(0, SCENE_PARAGRAPH_MAX_CHARS);
+};
+
+const illustrationBlocks = (doc) =>
+  Array.from(doc.body.querySelectorAll(SCENE_PARAGRAPH_SELECTOR));
+
+const findIllustrationBlock = (doc, item) => {
+  const blocks = illustrationBlocks(doc);
+  // A figure cannot be a sibling of a table cell; refuse instead of corrupting the table.
+  const usable = block => block
+    && block.tagName !== 'TD' && block.tagName !== 'TH'
+    ? block : null;
+  const index = item.paragraphIndex;
+  if (Number.isInteger(index) && index >= 0 && index < blocks.length
+    && illustrationAnchorText(blocks[index]) === item.paragraphText) {
+    return usable(blocks[index]);
+  }
+  // The paragraph ordinal is only a hint; the stored paragraph text decides.
+  const matches = blocks.filter(block =>
+    illustrationAnchorText(block) === item.paragraphText);
+  return matches.length === 1 ? usable(matches[0]) : null;
+};
+
+const bindIllustrationGestures = (figure, item) => {
+  let longPressTimer = null;
+  let longPressFired = false;
+  let touchMoved = false;
+  const clearTimer = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  };
+  const startLongPress = () => {
+    clearTimer();
+    longPressFired = false;
+    longPressTimer = setTimeout(() => {
+      longPressTimer = null;
+      longPressFired = true;
+      callFlutter('onIllustrationLongPress', { id: item.id });
+    }, ILLUSTRATION_LONG_PRESS_MS);
+  };
+  figure.addEventListener('touchstart', () => {
+    touchMoved = false;
+    startLongPress();
+  }, { passive: true });
+  figure.addEventListener('touchmove', () => {
+    touchMoved = true;
+    clearTimer();
+  }, { passive: true });
+  figure.addEventListener('touchend', clearTimer);
+  figure.addEventListener('touchcancel', clearTimer);
+  figure.addEventListener('pointerdown', startLongPress);
+  figure.addEventListener('pointerup', clearTimer);
+  figure.addEventListener('pointerleave', clearTimer);
+  figure.addEventListener('pointercancel', clearTimer);
+  figure.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    clearTimer();
+    if (longPressFired) {
+      longPressFired = false;
+      return;
+    }
+    if (touchMoved) {
+      touchMoved = false;
+      return;
+    }
+    callFlutter('onIllustrationTap', { id: item.id });
+  });
+  figure.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+};
+
+const makeIllustrationFigure = (doc, item) => {
+  const figure = doc.createElement('figure');
+  figure.className = 'anx-illustration';
+  figure.setAttribute(ILLUSTRATION_IGNORE_ATTR, '');
+  figure.setAttribute(ILLUSTRATION_ATTR, item.id);
+  figure.style.userSelect = 'none';
+  figure.style.webkitUserSelect = 'none';
+  figure.style.webkitTouchCallout = 'none';
+
+  const width = Number(item.width) || 0;
+  const height = Number(item.height) || 0;
+  const showPlaceholder = (reason) => {
+    figure.classList.remove('is-loading');
+    figure.classList.add('is-missing');
+    figure.setAttribute('data-anx-status', reason);
+    if (width > 0 && height > 0) {
+      figure.style.aspectRatio = `${width} / ${height}`;
+    }
+  };
+
+  if (!item.imageUrl || item.missing) {
+    showPlaceholder(sceneIllustrationText.unavailable);
+  } else {
+    figure.classList.add('is-loading');
+    figure.setAttribute('data-anx-status', sceneIllustrationText.loading);
+    const img = doc.createElement('img');
+    img.alt = '';
+    img.draggable = false;
+    img.decoding = 'async';
+    if (width > 0) img.setAttribute('width', String(width));
+    if (height > 0) img.setAttribute('height', String(height));
+    img.addEventListener('load', () => {
+      figure.classList.remove('is-loading');
+      figure.removeAttribute('data-anx-status');
+    });
+    img.addEventListener('error', () => {
+      img.remove();
+      showPlaceholder(sceneIllustrationText.unavailable);
+    });
+    img.src = item.imageUrl;
+    figure.append(img);
+  }
+
+  bindIllustrationGestures(figure, item);
+  return figure;
+};
+
 const handleSelection = (view, doc, index) => {
   const selection = doc.getSelection();
   let range = getSelectionRange(selection);
@@ -350,6 +487,12 @@ const handleSelection = (view, doc, index) => {
   const contextText = buildRangeContextText(range);
   const paragraphContext = buildParagraphContext(range);
 
+  const sourceBlock = _sceneBlockElementOf(range.startContainer);
+  const sourceBlocks = illustrationBlocks(doc);
+  const sourceParagraphIndex = sourceBlock ? sourceBlocks.indexOf(sourceBlock) : -1;
+  const sourceParagraphText = illustrationAnchorText(sourceBlock);
+  const sectionHref = view?.book?.sections?.[index]?.id ?? '';
+
   onSelectionEnd({
     index,
     range,
@@ -359,7 +502,11 @@ const handleSelection = (view, doc, index) => {
     text,
     contextText,
     contextBefore: paragraphContext.before,
-    contextAfter: paragraphContext.after
+    contextAfter: paragraphContext.after,
+    sectionIndex: index,
+    sectionHref,
+    paragraphIndex: sourceParagraphIndex,
+    paragraphText: sourceParagraphText
   });
 };
 
@@ -1139,7 +1286,54 @@ const getCSS = ({ fontSize,
     aside[epub|type~="rearnote"] {
         display: none;
     }
-    
+
+    /* Scene illustration block: a normal body block after the source paragraph. */
+    .anx-illustration {
+        display: block !important;
+        margin: 1em 0 !important;
+        padding: 0 !important;
+        text-align: center !important;
+        text-indent: 0 !important;
+        user-select: none;
+        -webkit-user-select: none;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        -webkit-column-break-inside: avoid !important;
+    }
+
+    .anx-illustration img {
+        display: block;
+        width: 100%;
+        height: auto;
+        margin: 0 auto;
+        border-radius: 2px;
+        object-fit: contain !important;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+    }
+
+    .anx-illustration.is-loading,
+    .anx-illustration.is-missing {
+        position: relative;
+        background: rgba(128, 128, 128, 0.12);
+        border-radius: 2px;
+    }
+
+    .anx-illustration.is-loading::after,
+    .anx-illustration.is-missing::after {
+        content: attr(data-anx-status);
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        transform: translateY(-50%);
+        text-align: center;
+        font-size: 0.8em;
+        color: rgba(128, 128, 128, 0.9);
+        text-indent: 0;
+    }
+
     ${customCSSEnabled && customCSS ? customCSS : ''}
 `}
 
@@ -1564,6 +1758,61 @@ class Reader {
     if (style && style.codeHighlightTheme && style.codeHighlightTheme !== 'off') {
       // console.log('Applying code highlighting to loaded document, theme:', style.codeHighlightTheme)
       applyCodeHighlighting(style.codeHighlightTheme, doc)
+    }
+
+    // Must run before the paginator renders this section, so the reserved image
+    // box participates in the first layout instead of reflowing afterwards.
+    this.#renderIllustrations(doc, index)
+  }
+
+  #renderIllustrations(doc, index) {
+    if (!doc || index == null || isPdf) return false
+    if (this.view?.isFixedLayout) return false
+    const href = this.view?.book?.sections?.[index]?.id ?? ''
+    const items = href
+      ? sceneIllustrations.filter(item => item.sectionHref === href)
+      : []
+    const fingerprint = JSON.stringify(
+      items.map(item => [item.id, item.imageUrl, !!item.missing]))
+    if (doc.__anxIllustrationFingerprint === fingerprint) return false
+    doc.__anxIllustrationFingerprint = fingerprint
+
+    let changed = false
+    for (const node of doc.querySelectorAll(`[${ILLUSTRATION_ATTR}]`)) {
+      node.remove()
+      changed = true
+    }
+
+    const invalidIds = []
+    for (const item of items) {
+      const block = findIllustrationBlock(doc, item)
+      if (!block) {
+        invalidIds.push(item.id)
+        continue
+      }
+      block.insertAdjacentElement('afterend', makeIllustrationFigure(doc, item))
+      changed = true
+    }
+
+    if (invalidIds.length) {
+      // Report after the paginator has finished this load/render pass.
+      setTimeout(() => callFlutter('onIllustrationAnchorInvalid', { ids: invalidIds }), 0)
+    }
+    return changed
+  }
+
+  /** Re-apply the current illustration set to the loaded section and keep the view in place. */
+  refreshIllustrations() {
+    const doc = this.#doc
+    const index = this.#index
+    if (!doc || index == null) return
+    const range = this.view?.lastLocation?.range ?? null
+    if (!this.#renderIllustrations(doc, index)) return
+    const renderer = this.view?.renderer
+    if (!renderer) return
+    if (typeof renderer.render === 'function') renderer.render()
+    if (range && typeof renderer.scrollToAnchor === 'function') {
+      renderer.scrollToAnchor(range)
     }
   }
 
@@ -2055,6 +2304,35 @@ const getMetadata = async () => {
 }
 
 window.refreshToc = () => onSetToc()
+
+/**
+ * Replace the illustration set of the current book.
+ * Payload: { images: [...], loading: string, unavailable: string } as JSON.
+ * Each image: { id, sectionHref, paragraphIndex, paragraphText, imageUrl, width, height, missing }.
+ */
+window.__anxSetIllustrations = (raw) => {
+  let data
+  try {
+    data = typeof raw === 'string' ? JSON.parse(raw) : raw
+  } catch (e) {
+    console.warn('Invalid illustration payload', e)
+    return
+  }
+  sceneIllustrations = Array.isArray(data?.images) ? data.images : []
+  if (typeof data?.loading === 'string' && data.loading) {
+    sceneIllustrationText.loading = data.loading
+  }
+  if (typeof data?.unavailable === 'string' && data.unavailable) {
+    sceneIllustrationText.unavailable = data.unavailable
+  }
+  try {
+    if (typeof reader !== 'undefined' && reader?.refreshIllustrations) {
+      reader.refreshIllustrations()
+    }
+  } catch (e) {
+    console.warn('Apply illustrations failed', e)
+  }
+}
 
 window.changeStyle = (newStyle) => {
   const oldStyle = style
