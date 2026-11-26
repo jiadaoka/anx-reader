@@ -146,7 +146,8 @@ class ReadingPageState extends ConsumerState<ReadingPage>
     final l10n = L10n.of(context);
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) return;
-    messenger.hideCurrentSnackBar();
+    // 同时或 5 秒内完成多条时只留最新一条：清掉队列里排着的，再显示当前这条。
+    messenger.clearSnackBars();
     messenger.showSnackBar(
       SnackBar(
         content: Text(
@@ -154,7 +155,9 @@ class ReadingPageState extends ConsumerState<ReadingPage>
               ? l10n.sceneImagePromptDoneToast
               : l10n.sceneImageDoneToast,
         ),
-        duration: const Duration(seconds: 6),
+        duration: const Duration(seconds: 5),
+        // 带 action 的 SnackBar 默认 persist，到点不会自己关。
+        persist: false,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 88),
         action: SnackBarAction(
