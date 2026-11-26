@@ -39,7 +39,29 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag }}
-          fetch-depth: 1
+          # 取全量历史：Release 正文要算「上个 tag..本 tag」之间的提交，浅克隆算不出来。
+          fetch-depth: 0
+
+      - name: Collect changes since previous tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force --quiet
+
+          prev="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
+          {
+            echo '## 新增与修改'
+            echo
+            if [ -n "$prev" ]; then
+              git log --no-merges --pretty=format:'- %s' "${prev}..${TAG}"
+            else
+              echo '首个版本，列出最近 30 条提交：'
+              echo
+              git log --no-merges -n 30 --pretty=format:'- %s' "${TAG}"
+            fi
+            echo
+          } > release-changelog.md
 
       # 构建工具跟着 CI 走，源码跟着 tag 走：
       # - 老 tag 的树里没有后来才加的 scripts/ci/build_ohos_ci.sh；
@@ -120,15 +142,25 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Compose release notes
+        env:
+          VERSION: ${{ steps.build.outputs.version }}
+          VERSION_CODE: ${{ steps.build.outputs.version_code }}
+          SHA256: ${{ steps.build.outputs.sha256 }}
+        run: |
+          {
+            printf '版本：%s（versionCode %s）\n' "$VERSION" "$VERSION_CODE"
+            printf 'sha256：`%s`\n' "$SHA256"
+            echo
+            cat release-changelog.md
+          } > release-notes.md
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag }}
           name: JiaAnx ${{ inputs.tag }}
-          body: |
-            HarmonyOS arm64 未签名 HAP（release）。
-            版本：${{ steps.build.outputs.version }}（versionCode ${{ steps.build.outputs.version_code }}）
-            sha256：`${{ steps.build.outputs.sha256 }}`
+          body_path: release-notes.md
           files: build/ci/*.hap
           fail_on_unmatched_files: true
           prerelease: ${{ contains(inputs.tag, '-') }}
