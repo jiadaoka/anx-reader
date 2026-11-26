@@ -328,7 +328,7 @@ List<SceneTaskHistoryEntry> _decodeHistory(Object? raw) {
     final entries = decoded
         .whereType<Map>()
         .map((e) => SceneTaskHistoryEntry.fromJson(Map<String, dynamic>.from(e)))
-        .toList(growable: false);
+        .toList();
     entries.sort((a, b) => b.createTime.compareTo(a.createTime));
     return entries;
   } catch (_) {
