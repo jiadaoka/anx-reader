@@ -6,6 +6,7 @@ import 'package:anx_reader/page/settings_page/appearance.dart';
 import 'package:anx_reader/page/settings_page/developer/developer_options_page.dart';
 import 'package:anx_reader/page/settings_page/narrate.dart';
 import 'package:anx_reader/page/settings_page/reading.dart';
+import 'package:anx_reader/page/settings_page/reading_page_buttons.dart';
 import 'package:anx_reader/page/settings_page/scene_image.dart';
 import 'package:anx_reader/page/settings_page/settings_page.dart';
 import 'package:anx_reader/page/settings_page/storege.dart';
@@ -91,6 +92,17 @@ class _SubMoreSettingsState extends State<SubMoreSettings> {
                   L10n.of(context).downloadFonts,
                   L10n.of(context).readingPageStyle,
                   L10n.of(context).readingPageOther,
+                ],
+              },
+              {
+                "title": L10n.of(context).readingPageButtons,
+                "icon": Icons.visibility_outlined,
+                "sections": const ReadingPageButtonsSettings(),
+                "subtitles": [
+                  L10n.of(context).readingPageButtonsTopBarSection,
+                  L10n.of(context).readingPageButtonsBottomSection,
+                  L10n.of(context).readingPageButtonsSelectionSection,
+                  L10n.of(context).sceneImageTitle,
                 ],
               },
               {

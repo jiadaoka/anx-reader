@@ -809,7 +809,9 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                     },
                   ),
                   actions: [
-                    if (EnvVar.enableAIFeature) aiButton,
+                    if (EnvVar.enableAIFeature &&
+                        Prefs().readerPageShowTopBarAi)
+                      aiButton,
                     IconButton(
                       icon: const Icon(Icons.copy),
                       tooltip: L10n.of(context).readingPageCopyChapterContent,
@@ -886,23 +888,26 @@ class ReadingPageState extends ConsumerState<ReadingPage>
                                       onPressed: tocHandler,
                                     ),
                                     IconButton(
-                                      icon: const Icon(EvaIcons.edit),
-                                      onPressed: noteHandler,
-                                    ),
-                                    IconButton(
                                       icon: const Icon(Icons.data_usage),
                                       onPressed: progressHandler,
                                     ),
-                                    IconButton(
-                                      icon: const Icon(Icons.color_lens),
-                                      onPressed: () {
-                                        styleHandler(setState);
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(EvaIcons.headphones),
-                                      onPressed: ttsHandler,
-                                    ),
+                                    if (Prefs().readerPageShowBottomNotes)
+                                      IconButton(
+                                        icon: const Icon(EvaIcons.edit),
+                                        onPressed: noteHandler,
+                                      ),
+                                    if (Prefs().readerPageShowBottomStyle)
+                                      IconButton(
+                                        icon: const Icon(Icons.color_lens),
+                                        onPressed: () {
+                                          styleHandler(setState);
+                                        },
+                                      ),
+                                    if (Prefs().readerPageShowBottomTts)
+                                      IconButton(
+                                        icon: const Icon(EvaIcons.headphones),
+                                        onPressed: ttsHandler,
+                                      ),
                                   ],
                                 ),
                               ],

@@ -155,7 +155,10 @@ Future<void> showContextMenu(
       onClose: onClose,
       menuConstraints: menuConstraints,
       initialPlacement: initialPlacement,
-      showTranslationDefault: !isNewNote && Prefs().autoTranslateSelection,
+      // 翻译入口关掉后，自动翻译设置照旧保留，但阅读时不再自动展开翻译面板。
+      showTranslationDefault: !isNewNote &&
+          Prefs().autoTranslateSelection &&
+          Prefs().readerPageShowSelectionTranslate,
       horizontalMargin: horizontalMargin,
       verticalMargin: verticalMargin,
       gap: gap,

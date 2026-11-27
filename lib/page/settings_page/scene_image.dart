@@ -58,6 +58,39 @@ class _SceneImageSettingsState extends ConsumerState<SceneImageSettings> {
         ),
       ),
       SettingsSection(
+        title: Text(l10n.sceneImageEntrySection),
+        tiles: [
+          SettingsTile.switchTile(
+            initialValue: Prefs().readerPageShowSelectionSceneImage,
+            onToggle: (value) {
+              Prefs().readerPageShowSelectionSceneImage = value;
+              setState(() {});
+            },
+            title: Text(l10n.sceneImageDrawThis),
+            description: Text(l10n.readingPageButtonSelectionSceneImageHint),
+          ),
+          SettingsTile.switchTile(
+            initialValue: Prefs().readerPageShowSelectionSceneCharacter,
+            onToggle: (value) {
+              Prefs().readerPageShowSelectionSceneCharacter = value;
+              setState(() {});
+            },
+            title: Text(l10n.sceneCharacterAssign),
+            description:
+                Text(l10n.readingPageButtonSelectionSceneCharacterHint),
+          ),
+          CustomSettingsTile(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+              child: Text(
+                l10n.sceneImageEntrySyncHint,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ),
+          ),
+        ],
+      ),
+      SettingsSection(
         title: Text(l10n.sceneImagePromptSection),
         tiles: [
           SettingsTile.navigation(

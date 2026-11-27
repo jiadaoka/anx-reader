@@ -1078,6 +1078,112 @@ class Prefs extends ChangeNotifier {
     return prefs.getBool('showActionLabels') ?? true;
   }
 
+  // 阅读页按钮：只控制阅读页上各入口是否显示，关闭不删除数据、不改变功能能力。
+  // 全部默认开，等于加开关之前的阅读页。
+  bool get readerPageShowTopBarAi =>
+      prefs.getBool('readerPageShowTopBarAi') ?? true;
+
+  set readerPageShowTopBarAi(bool status) {
+    prefs.setBool('readerPageShowTopBarAi', status);
+    notifyListeners();
+  }
+
+  bool get readerPageShowBottomNotes =>
+      prefs.getBool('readerPageShowBottomNotes') ?? true;
+
+  set readerPageShowBottomNotes(bool status) {
+    prefs.setBool('readerPageShowBottomNotes', status);
+    notifyListeners();
+  }
+
+  bool get readerPageShowBottomStyle =>
+      prefs.getBool('readerPageShowBottomStyle') ?? true;
+
+  set readerPageShowBottomStyle(bool status) {
+    prefs.setBool('readerPageShowBottomStyle', status);
+    notifyListeners();
+  }
+
+  bool get readerPageShowBottomTts =>
+      prefs.getBool('readerPageShowBottomTts') ?? true;
+
+  set readerPageShowBottomTts(bool status) {
+    prefs.setBool('readerPageShowBottomTts', status);
+    notifyListeners();
+  }
+
+  bool get readerPageShowSelectionSearch =>
+      prefs.getBool('readerPageShowSelectionSearch') ?? true;
+
+  set readerPageShowSelectionSearch(bool status) {
+    prefs.setBool('readerPageShowSelectionSearch', status);
+    notifyListeners();
+  }
+
+  bool get readerPageShowSelectionTranslate =>
+      prefs.getBool('readerPageShowSelectionTranslate') ?? true;
+
+  set readerPageShowSelectionTranslate(bool status) {
+    prefs.setBool('readerPageShowSelectionTranslate', status);
+    notifyListeners();
+  }
+
+  bool get readerPageShowSelectionNarrate =>
+      prefs.getBool('readerPageShowSelectionNarrate') ?? true;
+
+  set readerPageShowSelectionNarrate(bool status) {
+    prefs.setBool('readerPageShowSelectionNarrate', status);
+    notifyListeners();
+  }
+
+  bool get readerPageShowSelectionNote =>
+      prefs.getBool('readerPageShowSelectionNote') ?? true;
+
+  set readerPageShowSelectionNote(bool status) {
+    prefs.setBool('readerPageShowSelectionNote', status);
+    notifyListeners();
+  }
+
+  bool get readerPageShowSelectionMarkup =>
+      prefs.getBool('readerPageShowSelectionMarkup') ?? true;
+
+  set readerPageShowSelectionMarkup(bool status) {
+    prefs.setBool('readerPageShowSelectionMarkup', status);
+    notifyListeners();
+  }
+
+  bool get readerPageShowSelectionAi =>
+      prefs.getBool('readerPageShowSelectionAi') ?? true;
+
+  set readerPageShowSelectionAi(bool status) {
+    prefs.setBool('readerPageShowSelectionAi', status);
+    notifyListeners();
+  }
+
+  bool get readerPageShowSelectionShare =>
+      prefs.getBool('readerPageShowSelectionShare') ?? true;
+
+  set readerPageShowSelectionShare(bool status) {
+    prefs.setBool('readerPageShowSelectionShare', status);
+    notifyListeners();
+  }
+
+  bool get readerPageShowSelectionSceneImage =>
+      prefs.getBool('readerPageShowSelectionSceneImage') ?? true;
+
+  set readerPageShowSelectionSceneImage(bool status) {
+    prefs.setBool('readerPageShowSelectionSceneImage', status);
+    notifyListeners();
+  }
+
+  bool get readerPageShowSelectionSceneCharacter =>
+      prefs.getBool('readerPageShowSelectionSceneCharacter') ?? true;
+
+  set readerPageShowSelectionSceneCharacter(bool status) {
+    prefs.setBool('readerPageShowSelectionSceneCharacter', status);
+    notifyListeners();
+  }
+
   set pageTurnMode(String mode) {
     prefs.setString('pageTurnMode', mode);
     notifyListeners();

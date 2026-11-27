@@ -281,69 +281,72 @@ class ExcerptMenuState extends State<ExcerptMenu> {
             text: L10n.of(context).contextMenuCopy,
           ),
           // Web search
-          IconAndText(
-            compact: true,
-            onTap: () {
-              final displayMode = Prefs().searchDisplayMode;
-              final engine = Prefs().selectedSearchEngine;
-              final query = widget.annoContent;
+          if (Prefs().readerPageShowSelectionSearch)
+            IconAndText(
+              compact: true,
+              onTap: () {
+                final displayMode = Prefs().searchDisplayMode;
+                final engine = Prefs().selectedSearchEngine;
+                final query = widget.annoContent;
 
-              switch (displayMode) {
-                case SearchDisplayMode.popup:
-                  widget.toggleSearchMenu(show: true, query: query);
-                  break;
-                case SearchDisplayMode.fullScreen:
-                  widget.onClose();
-                  launchUrl(
-                    Uri.parse(engine.buildUrl(query)),
-                    mode: LaunchMode.inAppWebView,
-                  );
-                  break;
-                case SearchDisplayMode.external:
-                  widget.onClose();
-                  launchUrl(
-                    Uri.parse(engine.buildUrl(query)),
-                    mode: LaunchMode.externalApplication,
-                  );
-                  break;
-              }
-            },
-            icon: const Icon(EvaIcons.globe),
-            text: L10n.of(context).contextMenuSearch,
-          ),
+                switch (displayMode) {
+                  case SearchDisplayMode.popup:
+                    widget.toggleSearchMenu(show: true, query: query);
+                    break;
+                  case SearchDisplayMode.fullScreen:
+                    widget.onClose();
+                    launchUrl(
+                      Uri.parse(engine.buildUrl(query)),
+                      mode: LaunchMode.inAppWebView,
+                    );
+                    break;
+                  case SearchDisplayMode.external:
+                    widget.onClose();
+                    launchUrl(
+                      Uri.parse(engine.buildUrl(query)),
+                      mode: LaunchMode.externalApplication,
+                    );
+                    break;
+                }
+              },
+              icon: const Icon(EvaIcons.globe),
+              text: L10n.of(context).contextMenuSearch,
+            ),
           // toggle translation menu
-          IconAndText(
-            compact: true,
-            onTap: widget.toggleTranslationMenu,
-            icon: const Icon(Icons.translate),
-            text: L10n.of(context).contextMenuTranslate,
-          ),
+          if (Prefs().readerPageShowSelectionTranslate)
+            IconAndText(
+              compact: true,
+              onTap: widget.toggleTranslationMenu,
+              icon: const Icon(Icons.translate),
+              text: L10n.of(context).contextMenuTranslate,
+            ),
           // narrate
-          IconAndText(
-            compact: true,
-            onTap: () async {
-              widget.onClose();
-              final playerState = epubPlayerKey.currentState;
-              if (playerState == null) return;
+          if (Prefs().readerPageShowSelectionNarrate)
+            IconAndText(
+              compact: true,
+              onTap: () async {
+                widget.onClose();
+                final playerState = epubPlayerKey.currentState;
+                if (playerState == null) return;
 
-              // Stop existing TTS playback if any
-              await audioHandler.stop();
+                // Stop existing TTS playback if any
+                await audioHandler.stop();
 
-              // Now initialize TTS - it will use the current (updated) position
-              await TtsHandler().init(
-                () => playerState.initTts(fromCfi: widget.annoCfi),
-                playerState.ttsNext,
-                playerState.ttsPrev,
-              );
+                // Now initialize TTS - it will use the current (updated) position
+                await TtsHandler().init(
+                  () => playerState.initTts(fromCfi: widget.annoCfi),
+                  playerState.ttsNext,
+                  playerState.ttsPrev,
+                );
 
-              // Start TTS - audioHandler.play() will call TTS speak
-              await audioHandler.play();
-            },
-            icon: const Icon(Icons.headphones),
-            text: L10n.of(context).contextMenuNarrate,
-          ),
+                // Start TTS - audioHandler.play() will call TTS speak
+                await audioHandler.play();
+              },
+              icon: const Icon(Icons.headphones),
+              text: L10n.of(context).contextMenuNarrate,
+            ),
           // edit note
-          if (!widget.footnote)
+          if (!widget.footnote && Prefs().readerPageShowSelectionNote)
             IconAndText(
               compact: true,
               onTap: () async {
@@ -360,7 +363,8 @@ class ExcerptMenuState extends State<ExcerptMenu> {
               text: L10n.of(context).contextMenuWriteIdea,
             ),
           // 剧情配图
-          if (Prefs().sceneImageEnabled) ...[
+          if (Prefs().sceneImageEnabled &&
+              Prefs().readerPageShowSelectionSceneImage)
             IconAndText(
               compact: true,
               onTap: () async {
@@ -398,6 +402,8 @@ class ExcerptMenuState extends State<ExcerptMenu> {
               icon: const Icon(Icons.image_outlined),
               text: L10n.of(context).sceneImageDrawThis,
             ),
+          if (Prefs().sceneImageEnabled &&
+              Prefs().readerPageShowSelectionSceneCharacter)
             IconAndText(
               compact: true,
               onTap: () async {
@@ -423,9 +429,8 @@ class ExcerptMenuState extends State<ExcerptMenu> {
               icon: const Icon(Icons.person_add_alt_1),
               text: L10n.of(context).sceneCharacterAssign,
             ),
-          ],
           // AI chat
-          if (EnvVar.enableAIFeature)
+          if (EnvVar.enableAIFeature && Prefs().readerPageShowSelectionAi)
             IconAndText(
               compact: true,
               onTap: () {
@@ -444,21 +449,22 @@ class ExcerptMenuState extends State<ExcerptMenu> {
               text: L10n.of(context).navBarAI,
             ),
           // share
-          IconAndText(
-            compact: true,
-            onTap: () {
-              widget.onClose();
-              ExcerptShareService.showShareExcerpt(
-                context: context,
-                bookTitle: epubPlayerKey.currentState!.book.title,
-                author: epubPlayerKey.currentState!.book.author,
-                excerpt: widget.annoContent,
-                chapter: epubPlayerKey.currentState!.chapterTitle,
-              );
-            },
-            icon: const Icon(EvaIcons.share_outline),
-            text: L10n.of(context).contextMenuShare,
-          ),
+          if (Prefs().readerPageShowSelectionShare)
+            IconAndText(
+              compact: true,
+              onTap: () {
+                widget.onClose();
+                ExcerptShareService.showShareExcerpt(
+                  context: context,
+                  bookTitle: epubPlayerKey.currentState!.book.title,
+                  author: epubPlayerKey.currentState!.book.author,
+                  excerpt: widget.annoContent,
+                  chapter: epubPlayerKey.currentState!.chapterTitle,
+                );
+              },
+              icon: const Icon(EvaIcons.share_outline),
+              text: L10n.of(context).contextMenuShare,
+            ),
         ],
       ),
     );
@@ -480,7 +486,7 @@ class ExcerptMenuState extends State<ExcerptMenu> {
               SingleChildScrollView(
                   scrollDirection: widget.axis, child: operatorMenu),
               const SizedBox.square(dimension: 10),
-              if (!widget.footnote)
+              if (!widget.footnote && Prefs().readerPageShowSelectionMarkup)
                 SingleChildScrollView(
                   scrollDirection: widget.axis,
                   child: annotationMenu,
