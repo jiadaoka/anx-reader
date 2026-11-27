@@ -95,8 +95,8 @@ class _ScenePromptTaskCardState extends ConsumerState<ScenePromptTaskCard> {
               promptText.trim().isEmpty
                   ? l10n.sceneTaskPromptEmpty
                   : promptText,
-              maxLines: 5,
-              overflow: TextOverflow.ellipsis,
+              maxLines: _expanded ? null : 3,
+              overflow: _expanded ? null : TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontFamily: 'monospace',
                 height: 1.5,

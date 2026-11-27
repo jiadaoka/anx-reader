@@ -262,7 +262,7 @@ class SceneTaskRefRow extends StatelessWidget {
   }
 }
 
-/// 版本行：x / y + 左右切换，可选显示当前版本的生成时间。
+/// 版本行：（n/N）+ 左右切换，可选显示当前版本的生成时间。
 class SceneTaskVersionRow extends StatelessWidget {
   const SceneTaskVersionRow({
     super.key,

@@ -1137,7 +1137,7 @@
   "sceneTaskStatusCancelled": "已取消",
   "sceneTaskQueueAhead": "前面还有 {count} 个",
   "sceneTaskContextMissing": "上下文不足",
-  "sceneTaskHistoryImage": "{index} / {total}",
+  "sceneTaskHistoryImage": "（{index}/{total}）",
   "sceneTaskHistoryPrompt": "第 {index} / {total} 版",
   "sceneTaskPrevious": "上一个",
   "sceneTaskNext": "下一个",
